@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Staff registration{% endblock %}
+{% block content %}
+<section class="auth">
+  <h1>Register a staff account</h1>
+  <p class="lede">For clinic staff only. Ask the clinic manager for the staff invite code.</p>
+  <form method="post" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <label>Full name<input name="full_name" value="{{ request.form.full_name }}" required></label>
+    <label>TMU email<input type="email" name="email" value="{{ request.form.email }}" placeholder="you@torontomu.ca" required></label>
+    <label>Staff invite code<input name="invite_code" autocomplete="off" required></label>
+    <label>Password<input type="password" name="password" minlength="8" required><small>At least 8 characters</small></label>
+    <label>Confirm password<input type="password" name="confirm" minlength="8" required></label>
+    <button class="btn">Create staff account</button>
+  </form>
+  <p class="aside">Already registered? <a href="{{ url_for('auth.login') }}">Log in</a></p>
+</section>
+{% endblock %}

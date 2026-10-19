@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Log in{% endblock %}
+{% block content %}
+<section class="auth">
+  <h1>Log in</h1>
+  <p class="lede">Students and clinic staff use the same login.</p>
+  <form method="post" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <label>TMU email<input type="email" name="email" placeholder="you@torontomu.ca" required autofocus></label>
+    <label>Password<input type="password" name="password" required></label>
+    <button class="btn">Log in</button>
+  </form>
+  <p class="aside">New student? <a href="{{ url_for('auth.register') }}">Create an account</a><br>
+  Clinic staff? <a href="{{ url_for('auth.admin_register') }}">Register a staff account</a></p>
+</section>
+{% endblock %}

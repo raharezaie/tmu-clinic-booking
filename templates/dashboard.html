@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>Clinic summary</h1>
+  <form method="get" class="filters">
+    <label>Date<input type="date" name="date" value="{{ day.isoformat() }}"></label>
+    <button class="btn ghost">Show day</button>
+  </form>
+</div>
+<div class="daynav">
+  <a href="{{ url_for('admin.dashboard', date=prev_day.isoformat()) }}">‹ Previous day</a>
+  <strong>{{ day.strftime('%A, %B %d, %Y') }}</strong>
+  <a href="{{ url_for('admin.dashboard', date=next_day.isoformat()) }}">Next day ›</a>
+</div>
+
+<dl class="stats">
+  <div><dt>Appointments booked</dt><dd>{{ summary.booked }}<small> of {{ summary.capacity }} slots</small></dd></div>
+  <div><dt>Slots filled</dt><dd>{{ summary.pct }}%</dd></div>
+  <div><dt>Patients booked</dt><dd>{{ summary.patients }}</dd></div>
+  <div><dt>Cancellations</dt><dd>{{ summary.cancelled }}</dd></div>
+</dl>
+
+<h2 class="section">Doctors on shift</h2>
+{% if doctors %}
+<ul class="load">
+  {% for d in doctors %}
+    <li>
+      <span class="name">{{ d.doctor.full_name }} <small>{{ d.doctor.specialty }}</small></span>
+      <span class="bar" aria-hidden="true"><span style="width: {{ d.pct }}%"></span></span>
+      <span class="count">{{ d.booked }} / {{ d.capacity }}</span>
+    </li>
+  {% endfor %}
+</ul>
+{% else %}
+  <p class="empty">No doctors are scheduled on this day.</p>
+{% endif %}
+
+<h2 class="section">Appointments</h2>
+{% if appts %}
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Time</th><th>Patient</th><th>Student no.</th><th>Doctor</th><th>Reason</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for a in appts %}
+    <tr class="{{ a.status }}">
+      <td>{{ a.start_time }}</td>
+      <td>{{ a.patient_name }}<br><small>{{ a.patient_email }}</small></td>
+      <td>{{ a.student_id or '' }}</td>
+      <td>{{ a.doctor_name }}<br><small>{{ a.specialty }}</small></td>
+      <td>{{ a.reason or '' }}</td>
+      <td><span class="tag {{ a.status }}">{{ a.status|capitalize }}</span></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+  <p class="empty">No appointments booked for this day yet.</p>
+{% endif %}
+{% endblock %}
