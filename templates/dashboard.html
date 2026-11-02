@@ -3,7 +3,7 @@
 {% block content %}
 <div class="pagehead">
   <h1>Clinic summary</h1>
-  <form method="get" class="filters">
+  <form method="get" class="filters" data-autosubmit>
     <label>Date<input type="date" name="date" value="{{ day.isoformat() }}"></label>
     <button class="btn ghost">Show day</button>
   </form>
@@ -18,6 +18,8 @@
   <div><dt>Appointments booked</dt><dd>{{ summary.booked }}<small> of {{ summary.capacity }} slots</small></dd></div>
   <div><dt>Slots filled</dt><dd>{{ summary.pct }}%</dd></div>
   <div><dt>Patients booked</dt><dd>{{ summary.patients }}</dd></div>
+  <div><dt>Completed</dt><dd>{{ summary.completed }}</dd></div>
+  <div><dt>No-shows</dt><dd>{{ summary.no_show }}</dd></div>
   <div><dt>Cancellations</dt><dd>{{ summary.cancelled }}</dd></div>
 </dl>
 
@@ -40,7 +42,7 @@
 {% if appts %}
 <div class="tablewrap">
 <table>
-  <thead><tr><th>Time</th><th>Patient</th><th>Student no.</th><th>Doctor</th><th>Reason</th><th>Status</th></tr></thead>
+  <thead><tr><th>Time</th><th>Patient</th><th>Student no.</th><th>Doctor</th><th>Reason</th><th>Status</th><th><span class="sr-only">Actions</span></th></tr></thead>
   <tbody>
   {% for a in appts %}
     <tr class="{{ a.status }}">
@@ -49,7 +51,19 @@
       <td>{{ a.student_id or '' }}</td>
       <td>{{ a.doctor_name }}<br><small>{{ a.specialty }}</small></td>
       <td>{{ a.reason or '' }}</td>
-      <td><span class="tag {{ a.status }}">{{ a.status|capitalize }}</span></td>
+      <td><span class="tag {{ a.status }}">{{ status_label(a.status) }}</span></td>
+      <td class="actions">
+        {% if a.status == 'booked' %}
+          {% set options = [('completed', 'Completed', ''), ('no_show', 'No-show', 'ghost')] if a.started else [('cancelled', 'Cancel', 'danger')] %}
+          {% for value, label, style in options %}
+            <form method="post" action="{{ url_for('admin.set_status', appt_id=a.id) }}"{% if value == 'cancelled' %} onsubmit="return confirm('Cancel this appointment? The slot will reopen.')"{% endif %}>
+              <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+              <input type="hidden" name="status" value="{{ value }}">
+              <button class="btn small {{ style }}">{{ label }}</button>
+            </form>
+          {% endfor %}
+        {% endif %}
+      </td>
     </tr>
   {% endfor %}
   </tbody>

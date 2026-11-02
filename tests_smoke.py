@@ -68,5 +68,78 @@ assert "Sam Lee" in dash and "Jo Park" in dash and "Cancelled" in dash
 assert re.search(r"<dd>1<small> of 14 slots", dash), re.findall(r"<dd>.*?</dd>", dash)
 print("admin ok")
 
+# ---------- Full admin dashboard ----------
+import sqlite3
+for path in ("/admin/doctors", "/admin/doctors/1", "/admin/patients?q=a", "/admin/patients/1", "/admin/reports", "/admin/book?patient_id=1"):
+    assert c.get(path).status_code == 403, path
+print("admin routes blocked for patients ok")
+
+def appt_ids(html):
+    return re.findall(r'/admin/appointments/(\d+)/status', html)
+
+# A future booking can be cancelled but not marked completed
+sam_appt = appt_ids(dash)[0]
+r = post(a, f"/admin/appointments/{sam_appt}/status", dict(status="completed"), page=f"/admin/dashboard?date={d}")
+assert "once its start time has passed" in r.get_data(as_text=True)
+assert a.post(f"/admin/appointments/{sam_appt}/status", data=dict(status="cancelled")).status_code == 400  # no csrf
+
+# A past booking can be marked completed, then not cancelled
+y = date.today() - timedelta(days=1)
+con = sqlite3.connect(app.config["DATABASE"])
+sam_id = con.execute("SELECT id FROM users WHERE email = 'sam.lee@torontomu.ca'").fetchone()[0]
+con.execute("INSERT INTO appointments (patient_id, doctor_id, appt_date, start_time) VALUES (?, 1, ?, '09:00')", (sam_id, y.isoformat()))
+con.commit(); con.close()
+past = a.get(f"/admin/dashboard?date={y}").get_data(as_text=True)
+assert "No-show" in past
+past_appt = appt_ids(past)[0]
+r = post(a, f"/admin/appointments/{past_appt}/status", dict(status="completed"), page=f"/admin/dashboard?date={y}")
+assert "marked completed" in r.get_data(as_text=True)
+r = post(a, f"/admin/appointments/{past_appt}/status", dict(status="cancelled"), page=f"/admin/dashboard?date={y}")
+assert "already started" in r.get_data(as_text=True); print("appointment status ok")
+
+# Schedule changes that would strand Sam's booking are refused
+edit = a.get("/admin/doctors/1").get_data(as_text=True)
+monday_shift = re.findall(r'/admin/shifts/(\d+)/delete', edit)[0]
+r = post(a, f"/admin/shifts/{monday_shift}/delete", {}, page="/admin/doctors/1")
+assert "Can&#39;t remove this shift" in r.get_data(as_text=True)
+r = post(a, "/admin/doctors/1/time-off", dict(off_date=d.isoformat()), page="/admin/doctors/1")
+assert "Can&#39;t add time off" in r.get_data(as_text=True)
+r = post(a, "/admin/doctors/1/active", {}, page="/admin/doctors/1")
+assert "Can&#39;t deactivate" in r.get_data(as_text=True); print("stranding blocked ok")
+
+# Admin cancels Sam's booking: the slot reopens, then time off hides the doctor
+r = post(a, f"/admin/appointments/{sam_appt}/status", dict(status="cancelled"), page=f"/admin/dashboard?date={d}")
+assert "cancelled" in r.get_data(as_text=True)
+assert 'value="09:00"' in c.get(f"/book?date={d}&specialty=General+Practice").get_data(as_text=True)
+r = post(a, "/admin/doctors/1/time-off", dict(off_date=d.isoformat(), reason="Conference"), page="/admin/doctors/1")
+assert "as time off" in r.get_data(as_text=True)
+assert "Dr. Priya Raman" not in c.get(f"/book?date={d}").get_data(as_text=True); print("cancel + time off ok")
+
+# Add a doctor and a shift; patients can see it
+r = post(a, "/admin/doctors", dict(full_name="Dr. Test Person", specialty="Dermatology", department="Primary Care"), page="/admin/doctors")
+assert "Added Dr. Test Person" in r.get_data(as_text=True)
+new_id = re.search(r"/admin/doctors/(\d+)", r.request.path).group(1)
+page = f"/admin/doctors/{new_id}"
+assert "on the hour or half hour" in post(a, f"{page}/shifts", dict(weekday=0, start_time="08:15", end_time="09:00"), page=page).get_data(as_text=True)
+assert "Added Monday 08:00" in post(a, f"{page}/shifts", dict(weekday=0, start_time="08:00", end_time="09:00"), page=page).get_data(as_text=True)
+assert "overlaps" in post(a, f"{page}/shifts", dict(weekday=0, start_time="08:30", end_time="10:00"), page=page).get_data(as_text=True)
+avail = c.get(f"/book?date={d}&specialty=Dermatology").get_data(as_text=True)
+assert "Dr. Test Person" in avail and 'value="08:30"' in avail; print("doctors + shifts ok")
+
+# Find a patient and book on their behalf
+found = a.get("/admin/patients?q=501111111").get_data(as_text=True)
+assert "Jo Park" in found and "Sam Lee" not in found
+jo = re.search(r"/admin/patients/(\d+)", found).group(1)
+r = post(a, "/admin/book", dict(patient_id=jo, doctor_id=new_id, date=d.isoformat(), time="08:30", reason="Rash"), page=f"/admin/book?patient_id={jo}")
+assert "Booked Jo Park" in r.get_data(as_text=True)
+assert "08:30" in c2.get("/appointments").get_data(as_text=True)
+history = a.get(f"/admin/patients/{jo}").get_data(as_text=True)
+assert "Dr. Test Person" in history and "Cancelled" in history; print("patients + staff booking ok")
+
+# Report: Sam's completed visit, Jo's staff booking, two cancellations
+rep = a.get(f"/admin/reports?start={y}&end={d}").get_data(as_text=True)
+assert re.search(r"<dt>Completed</dt><dd>1</dd>", rep) and re.search(r"<dt>Cancellations</dt><dd>2</dd>", rep), re.findall(r"<dd>.*?</dd>", rep)
+assert "Dermatology" in rep; print("reports ok")
+
 
 print("ALL TESTS PASSED")

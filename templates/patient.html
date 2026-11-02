@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}{{ person.full_name }}{% endblock %}
+{% block content %}
+<p class="crumb"><a href="{{ url_for('reports.patients') }}">‹ Patients</a></p>
+<div class="pagehead">
+  <div>
+    <h1>{{ person.full_name }}</h1>
+    <p class="lede">{{ person.email }}{% if person.student_id %} · Student no. {{ person.student_id }}{% endif %} · Registered {{ person.created_at[:10] }}</p>
+  </div>
+  <a class="btn" href="{{ url_for('admin.book', patient_id=person.id) }}">Book for this patient</a>
+</div>
+
+<dl class="stats">
+  <div><dt>Upcoming / booked</dt><dd>{{ counts.booked }}</dd></div>
+  <div><dt>Completed</dt><dd>{{ counts.completed }}</dd></div>
+  <div><dt>No-shows</dt><dd>{{ counts.no_show }}</dd></div>
+  <div><dt>Cancelled</dt><dd>{{ counts.cancelled }}</dd></div>
+</dl>
+
+<h2 class="section">Appointment history</h2>
+{% if appts %}
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Date</th><th>Time</th><th>Doctor</th><th>Reason</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for a in appts %}
+    <tr class="{{ a.status }}">
+      <td><a href="{{ url_for('admin.dashboard', date=a.appt_date) }}">{{ a.appt_date }}</a></td>
+      <td>{{ a.start_time }}</td>
+      <td>{{ a.doctor_name }}<br><small>{{ a.specialty }}</small></td>
+      <td>{{ a.reason or '' }}</td>
+      <td><span class="tag {{ a.status }}">{{ status_label(a.status) }}</span></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+  <p class="empty">No appointments yet.</p>
+{% endif %}
+{% endblock %}

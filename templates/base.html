@@ -19,6 +19,9 @@
             <a href="{{ url_for('booking.my_appointments') }}">My appointments</a>
           {% else %}
             <a href="{{ url_for('admin.dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('doctors_admin.doctors') }}">Doctors</a>
+            <a href="{{ url_for('reports.patients') }}">Patients</a>
+            <a href="{{ url_for('reports.report') }}">Reports</a>
           {% endif %}
           <span class="who">{{ g.user.full_name }}</span>
           <form method="post" action="{{ url_for('auth.logout') }}">
@@ -42,5 +45,21 @@
     {% endwith %}
     {% block content %}{% endblock %}
   </main>
+  <script>
+    // Filter forms marked data-autosubmit reload as soon as a field changes.
+    // Their submit button stays only as a no-JavaScript fallback.
+    document.querySelectorAll("form[data-autosubmit]").forEach(function (form) {
+      var timer;
+      form.querySelector("button").style.display = "none";  // .btn's display would override [hidden]
+      form.addEventListener("change", function (e) {
+        clearTimeout(timer);
+        // Typing a date fires change per digit group, so wait a moment for it to settle
+        var isDate = e.target.type === "date";
+        timer = setTimeout(function () {
+          if (!isDate || e.target.value) form.submit();
+        }, isDate ? 500 : 0);
+      });
+    });
+  </script>
 </body>
 </html>

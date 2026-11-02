@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}{{ doctor.full_name }}{% endblock %}
+{% block content %}
+<p class="crumb"><a href="{{ url_for('doctors_admin.doctors') }}">‹ All doctors</a></p>
+<div class="pagehead">
+  <div>
+    <h1>{{ doctor.full_name }}</h1>
+    <p class="lede">{{ doctor.specialty }}, {{ doctor.department }} · <span class="tag {{ '' if doctor.active else 'cancelled' }}">{{ 'Active' if doctor.active else 'Inactive' }}</span></p>
+  </div>
+  <form method="post" action="{{ url_for('doctors_admin.toggle_active', doctor_id=doctor.id) }}"
+        {% if doctor.active %}onsubmit="return confirm('Deactivate this doctor? Patients won\'t be able to book them.')"{% endif %}>
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button class="btn {{ 'danger' if doctor.active else '' }}">{{ 'Deactivate' if doctor.active else 'Reactivate' }}</button>
+  </form>
+</div>
+
+<h2 class="section">Details</h2>
+<form method="post" class="panel formrow">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <label>Full name<input name="full_name" maxlength="100" value="{{ doctor.full_name }}" required></label>
+  <label>Specialty<input name="specialty" maxlength="100" value="{{ doctor.specialty }}" required></label>
+  <label>Department<input name="department" maxlength="100" value="{{ doctor.department }}" required></label>
+  <button class="btn ghost">Save details</button>
+</form>
+
+<h2 class="section">Weekly shifts</h2>
+{% if shifts %}
+<ul class="rows panel">
+  {% for s in shifts %}
+    <li>
+      <span><strong>{{ weekdays[s.weekday] }}</strong> {{ s.start_time }}–{{ s.end_time }} <small>{{ s.slot_minutes }}-minute slots</small></span>
+      <form method="post" action="{{ url_for('doctors_admin.delete_shift', shift_id=s.id) }}" onsubmit="return confirm('Remove this shift?')">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button class="btn small danger">Remove</button>
+      </form>
+    </li>
+  {% endfor %}
+</ul>
+{% else %}
+  <p class="empty">No shifts yet, so patients can't book this doctor.</p>
+{% endif %}
+<form method="post" action="{{ url_for('doctors_admin.add_shift', doctor_id=doctor.id) }}" class="panel formrow">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <label>Day
+    <select name="weekday" required>{% for w in weekdays %}<option value="{{ loop.index0 }}">{{ w }}</option>{% endfor %}</select>
+  </label>
+  <label>Starts
+    <select name="start_time" required>{% for t in times %}<option {% if t == '09:00' %}selected{% endif %}>{{ t }}</option>{% endfor %}</select>
+  </label>
+  <label>Ends
+    <select name="end_time" required>{% for t in times %}<option {% if t == '12:00' %}selected{% endif %}>{{ t }}</option>{% endfor %}</select>
+  </label>
+  <button class="btn ghost">Add shift</button>
+</form>
+
+<h2 class="section">Upcoming time off</h2>
+{% if time_off %}
+<ul class="rows panel">
+  {% for t in time_off %}
+    <li>
+      <span><strong>{{ t.off_date }}</strong>{% if t.reason %} <small>{{ t.reason }}</small>{% endif %}</span>
+      <form method="post" action="{{ url_for('doctors_admin.delete_time_off', off_id=t.id) }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button class="btn small ghost">Remove</button>
+      </form>
+    </li>
+  {% endfor %}
+</ul>
+{% else %}
+  <p class="empty">No time off booked.</p>
+{% endif %}
+<form method="post" action="{{ url_for('doctors_admin.add_time_off', doctor_id=doctor.id) }}" class="panel formrow">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <label>Date<input type="date" name="off_date" min="{{ today.isoformat() }}" required></label>
+  <label>Reason <small>(optional, staff only)</small><input name="reason" maxlength="100" placeholder="e.g. conference"></label>
+  <button class="btn ghost">Add time off</button>
+</form>
+{% endblock %}

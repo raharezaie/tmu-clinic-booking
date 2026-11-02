@@ -31,7 +31,7 @@
     <li>
       <div class="when"><strong>{{ a.start_time }}</strong><span>{{ a.appt_date }}</span></div>
       <div class="what"><strong>{{ a.doctor_name }}</strong><span>{{ a.specialty }}</span></div>
-      <span class="tag {{ a.status }}">{{ a.status|capitalize }}</span>
+      <span class="tag {{ a.status }}">{{ status_label(a.status) }}</span>
     </li>
   {% endfor %}
 </ul>

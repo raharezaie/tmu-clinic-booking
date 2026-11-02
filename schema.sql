@@ -14,7 +14,8 @@ CREATE TABLE doctors (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     full_name  TEXT NOT NULL,
     specialty  TEXT NOT NULL,
-    department TEXT NOT NULL
+    department TEXT NOT NULL,
+    active     INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE doctor_schedules (
@@ -26,6 +27,15 @@ CREATE TABLE doctor_schedules (
     slot_minutes INTEGER NOT NULL DEFAULT 30
 );
 
+-- Days a doctor is away (vacation, sick day); no slots are offered that day
+CREATE TABLE doctor_time_off (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    doctor_id INTEGER NOT NULL REFERENCES doctors(id),
+    off_date  TEXT    NOT NULL,   -- 'YYYY-MM-DD'
+    reason    TEXT,
+    UNIQUE (doctor_id, off_date)
+);
+
 -- D3: Appointments DB
 CREATE TABLE appointments (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,7 +45,7 @@ CREATE TABLE appointments (
     start_time TEXT    NOT NULL,   -- 'HH:MM'
     reason     TEXT,
     status     TEXT    NOT NULL DEFAULT 'booked'
-               CHECK (status IN ('booked', 'cancelled', 'completed')),
+               CHECK (status IN ('booked', 'cancelled', 'completed', 'no_show')),
     created_at TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 

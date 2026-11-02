@@ -1,9 +1,19 @@
 {% extends "base.html" %}
 {% block title %}Book{% endblock %}
 {% block content %}
+{% set ep = endpoint or 'booking.book' %}
+{% set pid = patient.id if patient else None %}
 <div class="pagehead">
-  <h1>Book an appointment</h1>
-  <form method="get" class="filters">
+  {% if patient %}
+    <div>
+      <h1>Book for {{ patient.full_name }}</h1>
+      <p class="lede">{{ patient.email }}{% if patient.student_id %} · {{ patient.student_id }}{% endif %} · <a href="{{ url_for('reports.patients') }}">Choose a different patient</a></p>
+    </div>
+  {% else %}
+    <h1>Book an appointment</h1>
+  {% endif %}
+  <form method="get" class="filters" data-autosubmit>
+    {% if patient %}<input type="hidden" name="patient_id" value="{{ patient.id }}">{% endif %}
     <label>Date<input type="date" name="date" value="{{ day.isoformat() }}" min="{{ first.isoformat() }}" max="{{ last.isoformat() }}"></label>
     <label>Specialty
       <select name="specialty">
@@ -16,9 +26,9 @@
 </div>
 
 <div class="daynav">
-  {% if day > first %}<a href="{{ url_for('booking.book', date=prev_day.isoformat(), specialty=specialty) }}">‹ Previous day</a>{% else %}<span></span>{% endif %}
+  {% if day > first %}<a href="{{ url_for(ep, date=prev_day.isoformat(), specialty=specialty, patient_id=pid) }}">‹ Previous day</a>{% else %}<span></span>{% endif %}
   <strong>{{ day.strftime('%A, %B %d') }}</strong>
-  {% if day < last %}<a href="{{ url_for('booking.book', date=next_day.isoformat(), specialty=specialty) }}">Next day ›</a>{% else %}<span></span>{% endif %}
+  {% if day < last %}<a href="{{ url_for(ep, date=next_day.isoformat(), specialty=specialty, patient_id=pid) }}">Next day ›</a>{% else %}<span></span>{% endif %}
 </div>
 
 {% if not results %}
@@ -29,6 +39,7 @@
   <form method="post" class="doctor">
     <input type="hidden" name="csrf" value="{{ csrf_token() }}">
     <input type="hidden" name="doctor_id" value="{{ r.doctor.id }}">
+    {% if patient %}<input type="hidden" name="patient_id" value="{{ patient.id }}">{% endif %}
     <input type="hidden" name="date" value="{{ day.isoformat() }}">
     <div class="doctor-info">
       <h2>{{ r.doctor.full_name }}</h2>
