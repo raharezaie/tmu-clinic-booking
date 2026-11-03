@@ -19,6 +19,7 @@ Since then, the **full clinic admin dashboard** has been added:
 | Edit schedules: weekly shifts and days off | `/admin/doctors/<id>` in `doctors_admin.py` |
 | Patient lookup and visit history | `/admin/patients` in `reports.py` |
 | Reports over a date range, by doctor and specialty | `/admin/reports` in `reports.py` |
+| Doctor accounts: staff invite a doctor by email, the doctor sets a password from the link | `/admin/doctors/<id>` (invite), `/doctor/join/<token>`, `/doctor/home` in `doctor_portal.py` |
 
 Staff can't make a schedule change that would leave a booked patient without a doctor (deactivating, removing a shift, or adding time off). The app lists the affected appointments so staff can cancel or rebook them first.
 
@@ -34,9 +35,9 @@ pip install -r requirements.txt
 flask --app app run --debug
 ```
 
-Open http://127.0.0.1:5000. The database file `clinic.db` is created on first run with five sample doctors and their weekly shifts.
+Open http://127.0.0.1:5000. The database file `clinic.db` is created on first run with five sample doctors and their weekly shifts, plus a demo doctor login for Dr. Priya Raman (`priya.raman@torontomu.ca`, password from `DEMO_DOCTOR_PASSWORD`, see Settings).
 
-To wipe all accounts and bookings and start fresh (also needed once if your `clinic.db` was created before the full admin dashboard, since the tables changed):
+To wipe all accounts and bookings and start fresh (also needed once if your `clinic.db` was created before the full admin dashboard or doctor accounts, since the tables changed):
 
 ```bash
 flask --app app init-db
@@ -50,6 +51,7 @@ flask --app app init-db
    - **Doctors**: add a doctor, give them weekly shifts, book days off, or deactivate them.
    - **Patients**: search by name, email or student number, see their history, and **Book** on their behalf.
    - **Reports**: pick a date range to see slots filled, completed visits, no-shows and cancellations by doctor and specialty.
+3. **Doctor:** As an admin, open a doctor under **Doctors**, enter their `@torontomu.ca` email under **Login**, and copy the invite link (it works once and expires in 7 days). Open the link logged out, choose a password, then log in on the normal login page. Doctors land on a placeholder home page for now and can change their password. Deactivating a doctor also blocks their login.
 
 ## Project structure
 
@@ -58,7 +60,8 @@ app.py          App setup, routes registered, error pages
 auth.py         1.0 Authenticate User (register, login, logout, role checks, CSRF)
 booking.py      2.0 Search Availability + 3.0 Book Appointment (patient pages)
 admin.py        4.0 Admin Dashboard: daily summary, appointment status changes, booking for patients
-doctors_admin.py  Staff management of doctors, weekly shifts, and time off (D2)
+doctors_admin.py  Staff management of doctors, weekly shifts, time off, and doctor login invites (D2)
+doctor_portal.py  Doctor invite links, sign-up from an invite, doctor home page
 reports.py      Patient lookup and date-range reports
 scheduling.py   Turns doctor shifts into 30-minute slots, removes booked/past/time-off ones; shared booking checks
 db.py           Database connection, init-db command, sample doctors
@@ -82,11 +85,12 @@ static/         style.css
 |---|---|---|
 | `SECRET_KEY` | `dev-only-change-me` | Yes, set a long random value |
 | `ADMIN_INVITE_CODE` | `TMU-STAFF-2026` | Yes |
+| `DEMO_DOCTOR_PASSWORD` | `doctorpass1` | Yes, or remove the demo doctor from `db.py` |
 
 ## Left for later sprints
 
 - Email verification of @torontomu.ca addresses (Sprint 1 checks the format only)
-- Doctor accounts and a doctor dashboard
+- Doctor dashboard (schedule, appointments)
 - Walk-in queue
 - Rescheduling in one step (today: cancel and rebook) and reminders
 - Automated test suite (Sprint 4: Testing)

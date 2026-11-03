@@ -5,7 +5,7 @@ CREATE TABLE users (
     email         TEXT    NOT NULL UNIQUE,
     student_id    TEXT,
     password_hash TEXT    NOT NULL,
-    role          TEXT    NOT NULL CHECK (role IN ('patient', 'admin')),
+    role          TEXT    NOT NULL CHECK (role IN ('patient', 'admin', 'doctor')),
     created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -15,7 +15,19 @@ CREATE TABLE doctors (
     full_name  TEXT NOT NULL,
     specialty  TEXT NOT NULL,
     department TEXT NOT NULL,
-    active     INTEGER NOT NULL DEFAULT 1
+    active     INTEGER NOT NULL DEFAULT 1,
+    user_id    INTEGER UNIQUE REFERENCES users(id)   -- the doctor's login, if they have one
+);
+
+-- One-time sign-up links staff send to doctors (only a hash of the token is stored)
+CREATE TABLE doctor_invites (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    doctor_id  INTEGER NOT NULL REFERENCES doctors(id),
+    email      TEXT    NOT NULL,
+    token_hash TEXT    NOT NULL UNIQUE,
+    expires_at TEXT    NOT NULL,   -- 'YYYY-MM-DD HH:MM:SS'
+    used_at    TEXT,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE doctor_schedules (

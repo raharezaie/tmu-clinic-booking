@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_fields.html" import addable_select %}
 {% block title %}{{ doctor.full_name }}{% endblock %}
 {% block content %}
 <p class="crumb"><a href="{{ url_for('doctors_admin.doctors') }}">‹ All doctors</a></p>
@@ -18,10 +19,43 @@
 <form method="post" class="panel formrow">
   <input type="hidden" name="csrf" value="{{ csrf_token() }}">
   <label>Full name<input name="full_name" maxlength="100" value="{{ doctor.full_name }}" required></label>
-  <label>Specialty<input name="specialty" maxlength="100" value="{{ doctor.specialty }}" required></label>
-  <label>Department<input name="department" maxlength="100" value="{{ doctor.department }}" required></label>
+  {{ addable_select('specialty', 'Specialty', choices.specialty, doctor.specialty) }}
+  {{ addable_select('department', 'Department', choices.department, doctor.department) }}
   <button class="btn ghost">Save details</button>
 </form>
+
+<h2 class="section">Login</h2>
+{% set label, tag, detail = account %}
+<ul class="rows panel">
+  <li><span><span class="tag {{ tag }}">{{ label }}</span>{% if detail %} <span class="detail">{{ detail }}</span>{% endif %}</span></li>
+</ul>
+{% if invite_link %}
+  <div class="panel invite">
+    <label>Invite link <small>(shown once; send it to the doctor)</small>
+      <input id="invite-link" value="{{ invite_link }}" readonly onclick="this.select()">
+    </label>
+    <button type="button" class="btn" id="copy-invite">Copy link</button>
+  </div>
+  <script>
+    document.getElementById("copy-invite").addEventListener("click", function () {
+      var input = document.getElementById("invite-link"), button = this;
+      input.select();
+      (navigator.clipboard ? navigator.clipboard.writeText(input.value) : Promise.reject())
+        .catch(function () { document.execCommand("copy"); })
+        .then(function () { button.textContent = "Copied"; });
+    });
+  </script>
+{% endif %}
+{% if not doctor.user_id and doctor.active %}
+<form method="post" action="{{ url_for('doctors_admin.invite', doctor_id=doctor.id) }}" class="panel formrow">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <label>Doctor's TMU email<input type="email" name="email" placeholder="name@torontomu.ca" required></label>
+  <button class="btn ghost">{{ 'New invite link' if label.startswith('Invite') else 'Create invite link' }}</button>
+</form>
+{% if label.startswith('Invite') %}<p class="aside">A new link replaces the old one, which stops working.</p>{% endif %}
+{% elif not doctor.user_id %}
+<p class="aside">Reactivate this doctor to invite them.</p>
+{% endif %}
 
 <h2 class="section">Weekly shifts</h2>
 {% if shifts %}

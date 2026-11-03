@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_fields.html" import addable_select %}
 {% block title %}Doctors{% endblock %}
 {% block content %}
 <div class="pagehead">
@@ -8,7 +9,7 @@
 {% if rows %}
 <div class="tablewrap">
 <table>
-  <thead><tr><th>Doctor</th><th>Department</th><th>Works</th><th>Hours / week</th><th>Status</th><th><span class="sr-only">Edit</span></th></tr></thead>
+  <thead><tr><th>Doctor</th><th>Department</th><th>Works</th><th>Hours / week</th><th>Status</th><th>Login</th><th><span class="sr-only">Edit</span></th></tr></thead>
   <tbody>
   {% for r in rows %}
     <tr class="{{ '' if r.doctor.active else 'cancelled' }}">
@@ -17,6 +18,7 @@
       <td>{{ r.days or 'No shifts yet' }}</td>
       <td class="num">{{ '%g'|format(r.hours) }}</td>
       <td><span class="tag {{ '' if r.doctor.active else 'cancelled' }}">{{ 'Active' if r.doctor.active else 'Inactive' }}</span></td>
+      <td><span class="tag {{ r.account[1] }}">{{ r.account[0] }}</span></td>
       <td class="actions"><a class="btn small ghost" href="{{ url_for('doctors_admin.edit_doctor', doctor_id=r.doctor.id) }}">Edit</a></td>
     </tr>
   {% endfor %}
@@ -31,10 +33,8 @@
 <form method="post" class="panel formrow">
   <input type="hidden" name="csrf" value="{{ csrf_token() }}">
   <label>Full name<input name="full_name" maxlength="100" placeholder="Dr. Jane Smith" required></label>
-  <label>Specialty<input name="specialty" maxlength="100" list="specialty-list" placeholder="General Practice" required></label>
-  <label>Department<input name="department" maxlength="100" list="department-list" placeholder="Primary Care" required></label>
+  {{ addable_select('specialty', 'Specialty', choices.specialty) }}
+  {{ addable_select('department', 'Department', choices.department) }}
   <button class="btn">Add doctor</button>
-  <datalist id="specialty-list">{% for s in rows|map(attribute='doctor.specialty')|unique %}<option value="{{ s }}">{% endfor %}</datalist>
-  <datalist id="department-list">{% for s in rows|map(attribute='doctor.department')|unique %}<option value="{{ s }}">{% endfor %}</datalist>
 </form>
 {% endblock %}

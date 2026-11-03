@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Welcome, {{ doctor.full_name }}</h1>
+    <p class="lede">{{ doctor.specialty }}, {{ doctor.department }}</p>
+  </div>
+</div>
+<p class="empty">Your doctor dashboard is coming soon. You'll be able to see your schedule and appointments here.</p>
+{% endblock %}

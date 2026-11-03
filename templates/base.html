@@ -17,6 +17,9 @@
           {% if g.user.role == 'patient' %}
             <a href="{{ url_for('booking.book') }}">Book</a>
             <a href="{{ url_for('booking.my_appointments') }}">My appointments</a>
+          {% elif g.user.role == 'doctor' %}
+            <a href="{{ url_for('doctor.home') }}">Home</a>
+            <a href="{{ url_for('auth.change_password') }}">Change password</a>
           {% else %}
             <a href="{{ url_for('admin.dashboard') }}">Dashboard</a>
             <a href="{{ url_for('doctors_admin.doctors') }}">Doctors</a>
@@ -46,6 +49,19 @@
     {% block content %}{% endblock %}
   </main>
   <script>
+    // Dropdowns marked data-addable show their "new value" box only when "+ Add new" is chosen
+    document.querySelectorAll("select[data-addable]").forEach(function (select) {
+      var input = select.parentNode.querySelector('input[name="' + select.name + '_new"]');
+      function sync() {
+        var adding = select.value === "__new__";
+        input.style.display = adding ? "" : "none";
+        input.required = adding;
+        if (adding) input.focus();
+      }
+      select.addEventListener("change", sync);
+      input.style.display = select.value === "__new__" ? "" : "none";
+    });
+
     // Filter forms marked data-autosubmit reload as soon as a field changes.
     // Their submit button stays only as a no-JavaScript fallback.
     document.querySelectorAll("form[data-autosubmit]").forEach(function (form) {

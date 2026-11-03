@@ -2,10 +2,11 @@
 import re
 from datetime import date, datetime
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, session, url_for
 
-from auth import login_required
+from auth import TMU_EMAIL, login_required
 from db import get_db
+from doctor_portal import account_status, cancel_invites, create_invite
 from scheduling import future_bookings, parse_date
 
 bp = Blueprint("doctors_admin", __name__, url_prefix="/admin")
@@ -21,9 +22,28 @@ def get_doctor(doctor_id):
     return doctor
 
 
+def choices():
+    """Existing specialties and departments, for the doctor form dropdowns."""
+    db = get_db()
+    return {
+        k: [r[k] for r in db.execute(f"SELECT DISTINCT {k} FROM doctors ORDER BY {k}")]
+        for k in ("specialty", "department")
+    }
+
+
 def doctor_fields(form):
-    """Name, specialty, department from a form, plus any errors."""
-    values = {k: form.get(k, "").strip()[:100] for k in ("full_name", "specialty", "department")}
+    """Name, specialty, department from a form, plus any errors.
+
+    Specialty and department come from a dropdown; "__new__" means the admin typed a new one."""
+    values = {"full_name": form.get("full_name", "").strip()[:100]}
+    existing = choices()
+    for k in ("specialty", "department"):
+        value = form.get(k, "").strip()
+        if value == "__new__":
+            value = " ".join(form.get(f"{k}_new", "").split())[:100]
+            # Reuse an existing spelling instead of adding "general practice" next to "General Practice"
+            value = next((e for e in existing[k] if e.lower() == value.lower()), value)
+        values[k] = value
     errors = [f"Enter the doctor's {k.replace('_', ' ')}." for k, v in values.items() if not v]
     return values, errors
 
@@ -54,8 +74,9 @@ def doctors():
             for s in shifts
         )
         days = sorted({s["weekday"] for s in shifts})
-        rows.append({"doctor": d, "hours": minutes / 60, "days": ", ".join(WEEKDAYS[w][:3] for w in days)})
-    return render_template("doctors.html", rows=rows)
+        rows.append({"doctor": d, "hours": minutes / 60, "days": ", ".join(WEEKDAYS[w][:3] for w in days),
+                     "account": account_status(d)})
+    return render_template("doctors.html", rows=rows, choices=choices())
 
 
 @bp.route("/doctors", methods=("POST",))
@@ -90,6 +111,8 @@ def edit_doctor(doctor_id):
                 "UPDATE doctors SET full_name = ?, specialty = ?, department = ? WHERE id = ?",
                 (values["full_name"], values["specialty"], values["department"], doctor_id),
             )
+            if doctor["user_id"]:  # keep the login's display name in step
+                db.execute("UPDATE users SET full_name = ? WHERE id = ?", (values["full_name"], doctor["user_id"]))
             db.commit()
             flash("Doctor details saved.", "success")
         return redirect(url_for("doctors_admin.edit_doctor", doctor_id=doctor_id))
@@ -101,9 +124,15 @@ def edit_doctor(doctor_id):
         "SELECT * FROM doctor_time_off WHERE doctor_id = ? AND off_date >= ? ORDER BY off_date",
         (doctor_id, date.today().isoformat()),
     ).fetchall()
+    # A freshly created invite link is shown once, then only its status
+    token = None
+    if session.get("invite_doctor") == doctor_id:
+        token = session.pop("invite_token", None)
+        session.pop("invite_doctor", None)
     return render_template(
         "doctor_edit.html", doctor=doctor, shifts=shifts, time_off=time_off,
-        weekdays=WEEKDAYS, today=date.today(),
+        weekdays=WEEKDAYS, today=date.today(), account=account_status(doctor), choices=choices(),
+        invite_link=url_for("doctor.join", token=token, _external=True) if token else None,
         times=[f"{h:02d}:{m:02d}" for h in range(7, 22) for m in (0, 30)],
     )
 
@@ -118,11 +147,35 @@ def toggle_active(doctor_id):
         if refuse_if_booked(future_bookings(doctor_id), "deactivate this doctor"):
             return back
         db.execute("UPDATE doctors SET active = 0 WHERE id = ?", (doctor_id,))
-        flash(f"{doctor['full_name']} is deactivated and no longer bookable.", "success")
+        cancel_invites(doctor_id)
+        flash(f"{doctor['full_name']} is deactivated: no longer bookable, and they can't log in.", "success")
     else:
         db.execute("UPDATE doctors SET active = 1 WHERE id = ?", (doctor_id,))
         flash(f"{doctor['full_name']} is active again.", "success")
     db.commit()
+    return back
+
+
+# ---------- Doctor login invites ----------
+@bp.route("/doctors/<int:doctor_id>/invite", methods=("POST",))
+@login_required(role="admin")
+def invite(doctor_id):
+    db = get_db()
+    doctor = get_doctor(doctor_id)
+    back = redirect(url_for("doctors_admin.edit_doctor", doctor_id=doctor_id))
+    email = request.form.get("email", "").strip().lower()
+    if doctor["user_id"]:
+        flash("This doctor already has a login.", "error")
+    elif not doctor["active"]:
+        flash("Reactivate this doctor before inviting them.", "error")
+    elif not TMU_EMAIL.match(email):
+        flash("Use the doctor's @torontomu.ca email address.", "error")
+    elif db.execute("SELECT 1 FROM users WHERE email = ?", (email,)).fetchone():
+        flash("That email already belongs to another account. Each email can only have one role.", "error")
+    else:
+        session["invite_token"] = create_invite(doctor_id, email)
+        session["invite_doctor"] = doctor_id
+        flash(f"Invite link created for {email}. Copy it and send it to them; it works once and expires in 7 days.", "success")
     return back
 
 

@@ -10,6 +10,7 @@ import admin
 import auth
 import booking
 import db
+import doctor_portal
 import doctors_admin
 import reports
 
@@ -20,6 +21,7 @@ def create_app(test_config=None):
         SECRET_KEY=os.environ.get("SECRET_KEY", "dev-only-change-me"),
         DATABASE=os.path.join(app.root_path, "clinic.db"),
         ADMIN_INVITE_CODE=os.environ.get("ADMIN_INVITE_CODE", "TMU-STAFF-2026"),
+        DEMO_DOCTOR_PASSWORD=os.environ.get("DEMO_DOCTOR_PASSWORD", "doctorpass1"),
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
     )
@@ -31,6 +33,7 @@ def create_app(test_config=None):
     app.register_blueprint(booking.bp)
     app.register_blueprint(admin.bp)
     app.register_blueprint(doctors_admin.bp)
+    app.register_blueprint(doctor_portal.bp)
     app.register_blueprint(reports.bp)
     app.jinja_env.globals["csrf_token"] = auth.csrf_token
     app.jinja_env.globals["status_label"] = lambda s: "No-show" if s == "no_show" else s.capitalize()

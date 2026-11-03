@@ -4,6 +4,7 @@ import sqlite3
 
 import click
 from flask import current_app, g
+from werkzeug.security import generate_password_hash
 
 
 def get_db():
@@ -29,6 +30,8 @@ SAMPLE_DOCTORS = [
     ("Dr. Sofia Marino", "Physiotherapy", "Sports Medicine", [(1, "13:00", "17:00"), (4, "09:00", "13:00")]),
 ]
 
+DEMO_DOCTOR = ("Dr. Priya Raman", "priya.raman@torontomu.ca")
+
 
 def init_db():
     db = get_db()
@@ -43,17 +46,23 @@ def init_db():
             "INSERT INTO doctor_schedules (doctor_id, weekday, start_time, end_time) VALUES (?, ?, ?, ?)",
             [(cur.lastrowid, d, s, e) for d, s, e in shifts],
         )
+    # Demo doctor login for development, linked to the first sample doctor
+    cur = db.execute(
+        "INSERT INTO users (full_name, email, password_hash, role) VALUES (?, ?, ?, 'doctor')",
+        (DEMO_DOCTOR[0], DEMO_DOCTOR[1], generate_password_hash(current_app.config["DEMO_DOCTOR_PASSWORD"])),
+    )
+    db.execute("UPDATE doctors SET user_id = ? WHERE full_name = ?", (cur.lastrowid, DEMO_DOCTOR[0]))
     db.commit()
 
 
 @click.command("init-db")
 def init_db_command():
-    """Delete the database and recreate it with sample doctors."""
+    """Delete the database and recreate it with sample doctors and the demo doctor login."""
     path = current_app.config["DATABASE"]
     if os.path.exists(path):
         os.remove(path)
     init_db()
-    click.echo("Database created with sample doctors.")
+    click.echo(f"Database created with sample doctors. Demo doctor login: {DEMO_DOCTOR[1]}")
 
 
 def init_app(app):

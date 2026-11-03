@@ -40,6 +40,22 @@ def load_user():
     g.user = None
     if uid is not None:
         g.user = get_db().execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
+        if g.user and not can_log_in(g.user):  # doctor deactivated mid-session
+            session.clear()
+            g.user = None
+
+
+def doctor_for_user(user):
+    """The doctors row linked to a doctor login, or None."""
+    return get_db().execute("SELECT * FROM doctors WHERE user_id = ?", (user["id"],)).fetchone()
+
+
+def can_log_in(user):
+    """Doctors can only log in while their doctor record is active."""
+    if user["role"] != "doctor":
+        return True
+    doctor = doctor_for_user(user)
+    return doctor is not None and bool(doctor["active"])
 
 
 def login_required(role=None):
@@ -57,7 +73,10 @@ def login_required(role=None):
 
 
 def home_for(user):
-    return url_for("admin.dashboard") if user["role"] == "admin" else url_for("booking.my_appointments")
+    return {
+        "admin": url_for("admin.dashboard"),
+        "doctor": url_for("doctor.home"),
+    }.get(user["role"], url_for("booking.my_appointments"))
 
 
 # ---------- Shared validation ----------
@@ -65,28 +84,35 @@ def validate_common(form):
     errors = []
     name = form.get("full_name", "").strip()
     email = form.get("email", "").strip().lower()
-    password = form.get("password", "")
     if not name:
         errors.append("Enter your full name.")
     if not TMU_EMAIL.match(email):
         errors.append("Use your @torontomu.ca email address.")
-    if len(password) < MIN_PASSWORD:
-        errors.append(f"Password must be at least {MIN_PASSWORD} characters.")
-    if password != form.get("confirm", ""):
-        errors.append("Passwords don't match.")
-    return name, email, password, errors
+    password, password_errors = validate_new_password(form)
+    return name, email, password, errors + password_errors
 
 
 def create_user(name, email, password, role, student_id=None):
+    """Returns the new user's id, or None if the email is already taken."""
     try:
-        get_db().execute(
+        cur = get_db().execute(
             "INSERT INTO users (full_name, email, student_id, password_hash, role) VALUES (?, ?, ?, ?, ?)",
             (name, email, student_id, generate_password_hash(password), role),
         )
         get_db().commit()
-        return True
+        return cur.lastrowid
     except sqlite3.IntegrityError:
-        return False
+        return None
+
+
+def validate_new_password(form):
+    password = form.get("password", "")
+    errors = []
+    if len(password) < MIN_PASSWORD:
+        errors.append(f"Password must be at least {MIN_PASSWORD} characters.")
+    if password != form.get("confirm", ""):
+        errors.append("Passwords don't match.")
+    return password, errors
 
 
 # ---------- Patient registration ----------
@@ -125,7 +151,7 @@ def admin_register():
     return render_template("admin_register.html")
 
 
-# ---------- Login / logout (one login page for both roles) ----------
+# ---------- Login / logout (one login page for every role) ----------
 @bp.route("/login", methods=("GET", "POST"))
 def login():
     if request.method == "POST":
@@ -134,6 +160,8 @@ def login():
         user = get_db().execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
         if user is None or not check_password_hash(user["password_hash"], password):
             flash("Email or password is incorrect.", "error")
+        elif not can_log_in(user):
+            flash("Your doctor account is disabled. Contact clinic staff.", "error")
         else:
             session.clear()  # new session on login
             session["user_id"] = user["id"]
@@ -142,6 +170,25 @@ def login():
                 return redirect(nxt)
             return redirect(home_for(user))
     return render_template("login.html")
+
+
+# ---------- Change own password (doctors) ----------
+@bp.route("/account/password", methods=("GET", "POST"))
+@login_required(role="doctor")
+def change_password():
+    if request.method == "POST":
+        password, errors = validate_new_password(request.form)
+        if not check_password_hash(g.user["password_hash"], request.form.get("current", "")):
+            errors.insert(0, "Current password is incorrect.")
+        if not errors:
+            get_db().execute("UPDATE users SET password_hash = ? WHERE id = ?",
+                             (generate_password_hash(password), g.user["id"]))
+            get_db().commit()
+            flash("Password changed.", "success")
+            return redirect(home_for(g.user))
+        for e in errors:
+            flash(e, "error")
+    return render_template("change_password.html")
 
 
 @bp.route("/logout", methods=("POST",))

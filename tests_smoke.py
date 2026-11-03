@@ -116,7 +116,9 @@ assert "as time off" in r.get_data(as_text=True)
 assert "Dr. Priya Raman" not in c.get(f"/book?date={d}").get_data(as_text=True); print("cancel + time off ok")
 
 # Add a doctor and a shift; patients can see it
-r = post(a, "/admin/doctors", dict(full_name="Dr. Test Person", specialty="Dermatology", department="Primary Care"), page="/admin/doctors")
+form = a.get("/admin/doctors").get_data(as_text=True)
+assert 'value="__new__"' in form and "<option >General Practice</option>" in form.replace("<option>", "<option >")
+r = post(a, "/admin/doctors", dict(full_name="Dr. Test Person", specialty="__new__", specialty_new="  Dermatology ", department="Primary Care"), page="/admin/doctors")
 assert "Added Dr. Test Person" in r.get_data(as_text=True)
 new_id = re.search(r"/admin/doctors/(\d+)", r.request.path).group(1)
 page = f"/admin/doctors/{new_id}"
@@ -124,7 +126,14 @@ assert "on the hour or half hour" in post(a, f"{page}/shifts", dict(weekday=0, s
 assert "Added Monday 08:00" in post(a, f"{page}/shifts", dict(weekday=0, start_time="08:00", end_time="09:00"), page=page).get_data(as_text=True)
 assert "overlaps" in post(a, f"{page}/shifts", dict(weekday=0, start_time="08:30", end_time="10:00"), page=page).get_data(as_text=True)
 avail = c.get(f"/book?date={d}&specialty=Dermatology").get_data(as_text=True)
-assert "Dr. Test Person" in avail and 'value="08:30"' in avail; print("doctors + shifts ok")
+assert "Dr. Test Person" in avail and 'value="08:30"' in avail; r = post(a, "/admin/doctors", dict(full_name="Dr. Case Check", specialty="__new__", specialty_new="general practice", department="__new__", department_new=""), page="/admin/doctors")
+assert "Enter the doctor&#39;s department" in r.get_data(as_text=True)
+r = post(a, "/admin/doctors", dict(full_name="Dr. Case Check", specialty="__new__", specialty_new="general practice", department="__new__", department_new="Walk-in Clinic"), page="/admin/doctors")
+con = sqlite3.connect(app.config["DATABASE"])
+assert con.execute("SELECT specialty, department FROM doctors WHERE full_name = 'Dr. Case Check'").fetchone() == ("General Practice", "Walk-in Clinic")
+con.close()
+assert "<option selected>Walk-in Clinic</option>" in r.get_data(as_text=True)
+print("doctors + shifts ok (addable dropdowns)")
 
 # Find a patient and book on their behalf
 found = a.get("/admin/patients?q=501111111").get_data(as_text=True)
@@ -140,6 +149,78 @@ assert "Dr. Test Person" in history and "Cancelled" in history; print("patients 
 rep = a.get(f"/admin/reports?start={y}&end={d}").get_data(as_text=True)
 assert re.search(r"<dt>Completed</dt><dd>1</dd>", rep) and re.search(r"<dt>Cancellations</dt><dd>2</dd>", rep), re.findall(r"<dd>.*?</dd>", rep)
 assert "Dermatology" in rep; print("reports ok")
+
+# ---------- Doctor accounts ----------
+def invite_path(html):
+    m = re.search(r'value="https?://[^"/]+(/doctor/join/[^"]+)"', html)
+    return m.group(1) if m else None
+
+chen = "/admin/doctors/2"
+assert "No account" in a.get("/admin/doctors").get_data(as_text=True)
+r = post(a, f"{chen}/invite", dict(email="marcus@gmail.com"), page=chen)
+assert "@torontomu.ca" in r.get_data(as_text=True) and invite_path(r.get_data(as_text=True)) is None
+r = post(a, f"{chen}/invite", dict(email="sam.lee@torontomu.ca"), page=chen)
+assert "already belongs to another account" in r.get_data(as_text=True)
+r = post(a, f"{chen}/invite", dict(email="marcus.chen@torontomu.ca"), page=chen)
+old_link = invite_path(r.get_data(as_text=True))
+assert old_link and "Invite pending" in r.get_data(as_text=True)
+assert invite_path(a.get(chen).get_data(as_text=True)) is None  # link is only shown once
+r = post(a, f"{chen}/invite", dict(email="marcus.chen@torontomu.ca"), page=chen)
+link = invite_path(r.get_data(as_text=True))
+doc = app.test_client()
+assert doc.get(old_link).status_code == 404; print("invite ok (old link replaced)")
+
+page = doc.get(link).get_data(as_text=True)
+assert "Dr. Marcus Chen" in page and "marcus.chen@torontomu.ca" in page
+r = post(doc, link, dict(password="short", confirm="short"))
+assert "8 characters" in r.get_data(as_text=True)
+r = post(doc, link, dict(password="doctorpass2", confirm="doctorpass2"))
+assert "Account created" in r.get_data(as_text=True)
+assert doc.get(link).status_code == 404
+assert "Active login" in a.get(chen).get_data(as_text=True); print("doctor sign-up ok")
+
+r = post(doc, "/login", dict(email="marcus.chen@torontomu.ca", password="doctorpass2"))
+t = r.get_data(as_text=True)
+assert "Welcome, Dr. Marcus Chen" in t and "coming soon" in t and "Change password" in t
+assert doc.get("/admin/dashboard").status_code == 403 and doc.get("/book").status_code == 403
+assert c.get("/doctor/home").status_code == 403 and a.get("/doctor/home").status_code == 403
+assert doc.post("/account/password", data=dict(current="doctorpass2", password="x" * 9, confirm="x" * 9)).status_code == 400  # csrf
+print("doctor login + roles ok")
+
+r = post(doc, "/account/password", dict(current="wrongpass", password="doctorpass3", confirm="doctorpass3"))
+assert "Current password is incorrect" in r.get_data(as_text=True)
+r = post(doc, "/account/password", dict(current="doctorpass2", password="doctorpass3", confirm="doctorpass3"))
+assert "Password changed" in r.get_data(as_text=True)
+d2 = app.test_client()
+assert "incorrect" in post(d2, "/login", dict(email="marcus.chen@torontomu.ca", password="doctorpass2")).get_data(as_text=True)
+assert "Welcome" in post(d2, "/login", dict(email="marcus.chen@torontomu.ca", password="doctorpass3")).get_data(as_text=True)
+print("change password ok")
+
+# Deactivating blocks login and ends open sessions; reactivating restores it
+r = post(a, f"{chen}/active", {}, page=chen)
+assert "can&#39;t log in" in r.get_data(as_text=True) and "Login disabled" in r.get_data(as_text=True)
+assert doc.get("/doctor/home", follow_redirects=True).request.path == "/login"
+d3 = app.test_client()
+assert "disabled" in post(d3, "/login", dict(email="marcus.chen@torontomu.ca", password="doctorpass3")).get_data(as_text=True)
+post(a, f"{chen}/active", {}, page=chen)
+assert "Welcome" in post(d3, "/login", dict(email="marcus.chen@torontomu.ca", password="doctorpass3")).get_data(as_text=True)
+print("deactivate blocks login ok")
+
+# Expired invites don't work; renaming a doctor renames their login
+r = post(a, "/admin/doctors/3/invite", dict(email="aisha.bello@torontomu.ca"), page="/admin/doctors/3")
+expired = invite_path(r.get_data(as_text=True))
+con = sqlite3.connect(app.config["DATABASE"])
+con.execute("UPDATE doctor_invites SET expires_at = '2000-01-01 00:00:00' WHERE doctor_id = 3")
+con.commit(); con.close()
+assert app.test_client().get(expired).status_code == 404
+assert "Invite expired" in a.get("/admin/doctors/3").get_data(as_text=True)
+post(a, chen, dict(full_name="Dr. Marcus Chen-Li", specialty="General Practice", department="Primary Care"), page=chen)
+assert "Dr. Marcus Chen-Li" in d3.get("/doctor/home").get_data(as_text=True)
+print("expired invite + rename ok")
+
+demo = app.test_client()
+assert "Welcome, Dr. Priya Raman" in post(demo, "/login", dict(email="priya.raman@torontomu.ca", password="doctorpass1")).get_data(as_text=True)
+print("demo doctor ok")
 
 
 print("ALL TESTS PASSED")
