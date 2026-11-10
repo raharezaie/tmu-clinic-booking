@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "_appt_actions.html" import appt_actions, cancel_info %}
+{% block title %}Visit with {{ appt.patient_name }}{% endblock %}
+{% block content %}
+<p class="crumb"><a href="{{ url_for('doctor_dashboard.home', date=appt.appt_date) }}">‹ {{ appt.appt_date }} schedule</a></p>
+<div class="pagehead">
+  <div>
+    <h1>{{ appt.patient_name }}</h1>
+    <p class="lede">{{ appt.appt_date }} at {{ appt.start_time }} · <span class="tag {{ appt.status }}">{{ status_label(appt.status) }}</span>{{ cancel_info(appt) }}</p>
+  </div>
+  <div class="actions">{{ appt_actions(appt, url_for('doctor_dashboard.set_status', appt_id=appt.id), allow_revert=true, back='visit') }}</div>
+</div>
+
+<dl class="facts panel">
+  <div><dt>Student no.</dt><dd>{{ appt.student_id or '—' }}</dd></div>
+  <div><dt>Email</dt><dd>{{ appt.patient_email }}</dd></div>
+  <div><dt>Reason for visit</dt><dd>{{ appt.reason or '—' }}</dd></div>
+  <div><dt>History</dt><dd><a href="{{ url_for('doctor_dashboard.patient', patient_id=appt.patient_id) }}">Visits with you</a></dd></div>
+</dl>
+
+<h2 class="section">Visit notes</h2>
+{% if editable %}
+<form method="post" class="panel stack notes">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <label>Private note <small>(only you can see this)</small>
+    <textarea name="private_note" rows="5" maxlength="2000">{{ notes.private_note if notes and notes.private_note else '' }}</textarea>
+  </label>
+  <label>Note for the patient <small>(shown on their visit page)</small>
+    <textarea name="shared_note" rows="5" maxlength="2000">{{ notes.shared_note if notes and notes.shared_note else '' }}</textarea>
+  </label>
+  <div class="confirm">
+    <button class="btn">Save notes</button>
+    <small>You can edit these until {{ lock_date.strftime('%B %d') }}.</small>
+  </div>
+</form>
+{% elif appt.status == 'completed' %}
+  <div class="panel notes">
+    <h3>Private note</h3><p>{{ notes.private_note if notes and notes.private_note else 'None.' }}</p>
+    <h3>Note for the patient</h3><p>{{ notes.shared_note if notes and notes.shared_note else 'None.' }}</p>
+    <p class="aside">Locked on {{ lock_date.strftime('%B %d, %Y') }}.</p>
+  </div>
+{% elif appt.status == 'booked' %}
+  <p class="empty">Notes open once you mark this visit completed.</p>
+{% else %}
+  <p class="empty">No notes for {{ 'no-shows' if appt.status == 'no_show' else 'cancelled visits' }}.</p>
+{% endif %}
+{% endblock %}

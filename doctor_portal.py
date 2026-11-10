@@ -1,11 +1,11 @@
-"""Doctor accounts: invite links, sign-up from an invite, and the doctor home page."""
+"""Doctor accounts: invite links and sign-up from an invite. The dashboard is in doctor_dashboard.py."""
 import hashlib
 import secrets
 from datetime import datetime, timedelta
 
-from flask import Blueprint, flash, g, redirect, render_template, request, url_for
+from flask import Blueprint, flash, redirect, render_template, request, url_for
 
-from auth import create_user, doctor_for_user, login_required, validate_new_password
+from auth import create_user, validate_new_password
 from db import get_db
 
 bp = Blueprint("doctor", __name__, url_prefix="/doctor")
@@ -96,8 +96,3 @@ def join(token):
             flash(e, "error")
     return render_template("doctor_join.html", invite=invite, doctor=doctor)
 
-
-@bp.route("/home")
-@login_required(role="doctor")
-def home():
-    return render_template("doctor_home.html", doctor=doctor_for_user(g.user))

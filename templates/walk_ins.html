@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Walk-ins{% endblock %}
+{% block content %}
+{# Bare queue view for the walk-in backend; styling and live refresh come with the walk-in form plan. #}
+<div class="pagehead"><h1>Walk-in queue</h1></div>
+
+{% for q in queues %}
+<h2 class="section">{{ q.specialty }} <small>· {{ q.rows|length }} waiting, {{ q.free }} free slots left today</small></h2>
+{% if q.rows %}
+<div class="tablewrap">
+<table>
+  <thead><tr><th>#</th><th>Name</th><th>Student no.</th><th>Waited</th><th>Estimate</th><th>Reason</th><th><span class="sr-only">Actions</span></th></tr></thead>
+  <tbody>
+  {% for w in q.rows %}
+    <tr>
+      <td class="num">{{ w.position }}</td>
+      <td>{{ w.full_name }}{% if w.person_role == 'guest' %} <span class="tag guest">Guest</span>{% endif %}<br><small>{{ w.email or '' }}</small></td>
+      <td>{{ w.student_id or '' }}</td>
+      <td class="num">{{ w.waited }} min</td>
+      <td>{{ w.estimate or 'No slot today' }}</td>
+      <td>{{ w.reason or '' }}</td>
+      <td class="actions">
+        <form method="post" action="{{ url_for('walkins.assign_route', walk_in_id=w.id) }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <select name="doctor_id" aria-label="Doctor">
+            {% for d in doctors %}<option value="{{ d.id }}" {% if d.specialty == q.specialty %}selected{% endif %}>{{ d.full_name }} ({{ d.specialty }})</option>{% endfor %}
+          </select>
+          <button class="btn small">Assign</button>
+        </form>
+        <form method="post" action="{{ url_for('walkins.end_route', walk_in_id=w.id) }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <input type="hidden" name="status" value="left">
+          <button class="btn small ghost">Left</button>
+        </form>
+        <details class="cancelbox">
+          <summary class="btn small danger">Remove…</summary>
+          <form method="post" action="{{ url_for('walkins.end_route', walk_in_id=w.id) }}">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+            <input type="hidden" name="status" value="removed">
+            <label>Reason<input name="reason" minlength="3" maxlength="200" placeholder="e.g. added by mistake" required></label>
+            <button class="btn small danger">Confirm remove</button>
+          </form>
+        </details>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+  <p class="empty">Nobody waiting.</p>
+{% endif %}
+{% else %}
+  <p class="empty">No doctors are working the rest of today, so walk-ins are closed.</p>
+{% endfor %}
+
+{% if ended %}
+<h2 class="section">Earlier today</h2>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Name</th><th>Service</th><th>Outcome</th></tr></thead>
+  <tbody>
+  {% for w in ended %}
+    <tr>
+      <td>{{ w.full_name }}</td>
+      <td>{{ w.specialty }}</td>
+      <td>{% if w.status == 'called' %}Seen by {{ w.doctor_name }} at {{ w.start_time }}{% else %}{{ {'left': 'Left without being seen', 'removed': 'Removed', 'closed': 'Not seen (closed)'}[w.status] }}{% if w.end_reason %}<br><small>{{ w.end_reason }}</small>{% endif %}{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

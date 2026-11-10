@@ -12,7 +12,7 @@
   {% for a in upcoming %}
     <li>
       <div class="when"><strong>{{ a.start_time }}</strong><span>{{ a.appt_date }}</span></div>
-      <div class="what"><strong>{{ a.doctor_name }}</strong><span>{{ a.specialty }}{% if a.reason %}. {{ a.reason }}{% endif %}</span></div>
+      <div class="what"><a href="{{ url_for('booking.visit', appt_id=a.id) }}"><strong>{{ a.doctor_name }}</strong></a><span>{{ a.specialty }}{% if a.reason %}. {{ a.reason }}{% endif %}</span></div>
       <form method="post" action="{{ url_for('booking.cancel', appt_id=a.id) }}" onsubmit="return confirm('Cancel this appointment?')">
         <input type="hidden" name="csrf" value="{{ csrf_token() }}">
         <button class="btn danger small">Cancel</button>
@@ -30,7 +30,7 @@
   {% for a in history %}
     <li>
       <div class="when"><strong>{{ a.start_time }}</strong><span>{{ a.appt_date }}</span></div>
-      <div class="what"><strong>{{ a.doctor_name }}</strong><span>{{ a.specialty }}</span></div>
+      <div class="what"><a href="{{ url_for('booking.visit', appt_id=a.id) }}"><strong>{{ a.doctor_name }}</strong></a><span>{{ a.specialty }}{% if a.status == 'cancelled' %}. {% if a.cancelled_by == 'clinic' %}Cancelled by the clinic: {{ a.cancel_reason }}{% else %}Cancelled by you{% endif %}{% endif %}</span></div>
       <span class="tag {{ a.status }}">{{ status_label(a.status) }}</span>
     </li>
   {% endfor %}

@@ -1,8 +1,9 @@
 """2.0 Search Availability and 3.0 Book Appointment (patients)."""
 from datetime import datetime, timedelta
 
-from flask import Blueprint, flash, g, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
 
+from appointments import has_started
 from auth import login_required
 from db import get_db
 from scheduling import (book_slot, bookable_range, parse_date,
@@ -60,12 +61,33 @@ def my_appointments():
     return render_template("appointments.html", upcoming=upcoming, history=history)
 
 
+@bp.route("/appointments/<int:appt_id>")
+@login_required(role="patient")
+def visit(appt_id):
+    db = get_db()
+    appt = db.execute(
+        """SELECT a.*, d.full_name AS doctor_name, d.specialty, d.department
+           FROM appointments a JOIN doctors d ON d.id = a.doctor_id
+           WHERE a.id = ? AND a.patient_id = ?""",
+        (appt_id, g.user["id"]),
+    ).fetchone()
+    if appt is None:
+        abort(404)
+    # Only the note meant for the patient is ever read here, and only once the visit is completed
+    shared = None
+    if appt["status"] == "completed":
+        row = db.execute("SELECT shared_note FROM visit_notes WHERE appointment_id = ?", (appt_id,)).fetchone()
+        shared = row["shared_note"] if row else None
+    return render_template("visit.html", appt=appt, shared_note=shared, upcoming=not has_started(appt))
+
+
 @bp.route("/appointments/<int:appt_id>/cancel", methods=("POST",))
 @login_required(role="patient")
 def cancel(appt_id):
     db = get_db()
     cur = db.execute(
-        "UPDATE appointments SET status = 'cancelled' WHERE id = ? AND patient_id = ? AND status = 'booked'",
+        "UPDATE appointments SET status = 'cancelled', cancelled_by = 'patient' "
+        "WHERE id = ? AND patient_id = ? AND status = 'booked'",
         (appt_id, g.user["id"]),
     )
     db.commit()

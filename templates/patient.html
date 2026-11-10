@@ -1,14 +1,24 @@
 {% extends "base.html" %}
+{% from "_appt_actions.html" import cancel_info, visit_tags %}
 {% block title %}{{ person.full_name }}{% endblock %}
 {% block content %}
 <p class="crumb"><a href="{{ url_for('reports.patients') }}">‹ Patients</a></p>
 <div class="pagehead">
   <div>
-    <h1>{{ person.full_name }}</h1>
-    <p class="lede">{{ person.email }}{% if person.student_id %} · Student no. {{ person.student_id }}{% endif %} · Registered {{ person.created_at[:10] }}</p>
+    <h1>{{ person.full_name }}{% if person.role == 'guest' %} <span class="tag guest">Guest</span>{% endif %}</h1>
+    <p class="lede">{{ person.email or person.guest_email }}{% if person.student_id %} · Student no. {{ person.student_id }}{% endif %} · {{ 'First walk-in' if person.role == 'guest' else 'Registered' }} {{ person.created_at[:10] }}</p>
   </div>
-  <a class="btn" href="{{ url_for('admin.book', patient_id=person.id) }}">Book for this patient</a>
+  {% if person.role == 'patient' %}<a class="btn" href="{{ url_for('admin.book', patient_id=person.id) }}">Book for this patient</a>{% endif %}
 </div>
+
+{% if person.role == 'guest' %}
+<p class="aside">This walk-in has no account. If they register with the same student number and email, their visits move over automatically. Otherwise, merge them into their account here.</p>
+<form method="post" action="{{ url_for('reports.merge', guest_id=person.id) }}" class="panel formrow">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <label>Patient account email or student no.<input name="target" required placeholder="name@torontomu.ca"></label>
+  <button class="btn ghost">Merge into account</button>
+</form>
+{% endif %}
 
 <dl class="stats">
   <div><dt>Upcoming / booked</dt><dd>{{ counts.booked }}</dd></div>
@@ -29,7 +39,7 @@
       <td>{{ a.start_time }}</td>
       <td>{{ a.doctor_name }}<br><small>{{ a.specialty }}</small></td>
       <td>{{ a.reason or '' }}</td>
-      <td><span class="tag {{ a.status }}">{{ status_label(a.status) }}</span></td>
+      <td><span class="tag {{ a.status }}">{{ status_label(a.status) }}</span>{{ visit_tags(a) }}{{ cancel_info(a) }}</td>
     </tr>
   {% endfor %}
   </tbody>

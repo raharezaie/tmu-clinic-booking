@@ -2,11 +2,13 @@
 CREATE TABLE users (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     full_name     TEXT    NOT NULL,
-    email         TEXT    NOT NULL UNIQUE,
+    email         TEXT    UNIQUE,   -- login email; NULL only for walk-in guests
     student_id    TEXT,
-    password_hash TEXT    NOT NULL,
-    role          TEXT    NOT NULL CHECK (role IN ('patient', 'admin', 'doctor')),
-    created_at    TEXT    NOT NULL DEFAULT (datetime('now'))
+    password_hash TEXT    NOT NULL, -- '!' for guests, which never matches a password
+    role          TEXT    NOT NULL CHECK (role IN ('patient', 'admin', 'doctor', 'kiosk', 'guest')),
+    guest_email   TEXT,             -- the email a walk-in guest typed in (not unique, not a login)
+    created_at    TEXT    NOT NULL DEFAULT (datetime('now')),
+    CHECK (email IS NOT NULL OR role = 'guest')
 );
 
 -- D2: Doctor Sched DB
@@ -58,8 +60,41 @@ CREATE TABLE appointments (
     reason     TEXT,
     status     TEXT    NOT NULL DEFAULT 'booked'
                CHECK (status IN ('booked', 'cancelled', 'completed', 'no_show')),
+    cancelled_by  TEXT CHECK (cancelled_by IN ('patient', 'clinic')),
+    cancel_reason TEXT,   -- required when the clinic cancels; shown to the patient
+    source     TEXT    NOT NULL DEFAULT 'booked' CHECK (source IN ('booked', 'walk_in')),
+    arrived_at TEXT,      -- when a booked patient checked in (walk-ins: when they were called)
+    slot_released_at TEXT, -- a late no-show whose slot was given to someone else
     created_at TEXT    NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Doctor's notes on a completed visit. Kept apart from appointments so only the pages
+-- that need them ever read them. private_note is doctor-only; shared_note is shown to the patient.
+CREATE TABLE visit_notes (
+    appointment_id INTEGER PRIMARY KEY REFERENCES appointments(id),
+    private_note   TEXT,
+    shared_note    TEXT,
+    updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Walk-in queue: one line per specialty, first come first served. Being called turns
+-- the entry into an appointment (source = 'walk_in') in a free slot.
+CREATE TABLE walk_ins (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id        INTEGER NOT NULL REFERENCES users(id),   -- a patient or a guest
+    specialty      TEXT    NOT NULL,
+    reason         TEXT,
+    visit_date     TEXT    NOT NULL,   -- 'YYYY-MM-DD'
+    checked_in_at  TEXT    NOT NULL,   -- 'YYYY-MM-DD HH:MM:SS'
+    status         TEXT    NOT NULL DEFAULT 'waiting'
+                   CHECK (status IN ('waiting', 'called', 'left', 'removed', 'closed')),
+    appointment_id INTEGER REFERENCES appointments(id),
+    ended_at       TEXT,
+    end_reason     TEXT
+);
+
+-- Someone can only be waiting in one queue at a time
+CREATE UNIQUE INDEX one_wait_per_person ON walk_ins (user_id) WHERE status = 'waiting';
 
 -- A slot can only hold one active booking (stops double-booking at the database level)
 CREATE UNIQUE INDEX one_booking_per_slot

@@ -38,18 +38,25 @@ def is_working(doctor_id, day):
     return row is not None and row["active"] and not row["off"]
 
 
-def all_slots(doctor_id, day):
-    """Every slot in a doctor's schedule for that day, booked or not."""
+def slot_ranges(doctor_id, day):
+    """(start, end) of every slot in a doctor's schedule for that day, booked or not."""
     if not is_working(doctor_id, day):
         return []
     rows = get_db().execute(
         "SELECT start_time, end_time, slot_minutes FROM doctor_schedules WHERE doctor_id = ? AND weekday = ?",
         (doctor_id, day.weekday()),
     ).fetchall()
-    slots = []
+    ranges = []
     for r in rows:
-        slots.extend(_times_between(r["start_time"], r["end_time"], r["slot_minutes"]))
-    return sorted(slots)
+        for t in _times_between(r["start_time"], r["end_time"], r["slot_minutes"]):
+            end = datetime.strptime(t, "%H:%M") + timedelta(minutes=r["slot_minutes"])
+            ranges.append((t, end.strftime("%H:%M")))
+    return sorted(ranges)
+
+
+def all_slots(doctor_id, day):
+    """Every slot in a doctor's schedule for that day, booked or not."""
+    return [start for start, _end in slot_ranges(doctor_id, day)]
 
 
 def open_slots(doctor_id, day):

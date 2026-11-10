@@ -1,24 +1,16 @@
 """4.0 Admin Dashboard: daily clinic summary, appointment actions, and booking for patients."""
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 
+from appointments import (STATUS_DONE, can_arrive, can_release, change_status, has_started,
+                          mark_arrived, release_slot)
 from auth import login_required
 from db import get_db
 from scheduling import (all_slots, book_slot, bookable_range, parse_date,
                         search_availability, specialties)
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
-
-# Which status changes staff can make, and when
-PAST_ONLY = {"completed", "no_show"}   # only once the start time has passed
-FUTURE_ONLY = {"cancelled"}            # only before it starts
-STATUS_DONE = {"completed": "marked completed", "no_show": "marked as a no-show", "cancelled": "cancelled"}
-
-
-def has_started(appt):
-    return f"{appt['appt_date']} {appt['start_time']}" <= datetime.now().strftime("%Y-%m-%d %H:%M")
-
 
 @bp.route("/dashboard")
 @login_required(role="admin")
@@ -27,19 +19,23 @@ def dashboard():
     day = parse_date(request.args.get("date")) or date.today()
 
     appts = [
-        dict(a, started=has_started(a))
+        dict(a, started=has_started(a), arrivable=can_arrive(a), releasable=can_release(a))
         for a in db.execute(
-            """SELECT a.*, u.full_name AS patient_name, u.email AS patient_email, u.student_id,
-                      d.full_name AS doctor_name, d.specialty
+            """SELECT a.*, u.full_name AS patient_name, COALESCE(u.email, u.guest_email) AS patient_email,
+                      u.student_id, u.role AS patient_role,
+                      d.full_name AS doctor_name, d.specialty,
+                      (n.private_note IS NOT NULL OR n.shared_note IS NOT NULL) AS has_note
                FROM appointments a
                JOIN users u ON u.id = a.patient_id
                JOIN doctors d ON d.id = a.doctor_id
+               LEFT JOIN visit_notes n ON n.appointment_id = a.id
                WHERE a.appt_date = ?
                ORDER BY a.start_time, d.full_name""",
             (day.isoformat(),),
         )
     ]
-    used = [a for a in appts if a["status"] != "cancelled"]  # booked, completed or no-show
+    # Booked, completed or no-show; a released no-show gave its slot away, so it isn't counted twice
+    used = [a for a in appts if a["status"] != "cancelled" and not a["slot_released_at"]]
 
     doctors = []
     for d in db.execute("SELECT * FROM doctors ORDER BY full_name"):
@@ -63,7 +59,12 @@ def dashboard():
         "patients": len({a["patient_id"] for a in used}),
         "capacity": capacity,
         "pct": round(100 * len(used) / capacity) if capacity else 0,
+        "walk_ins": sum(1 for a in used if a["source"] == "walk_in"),
     }
+    queue = {r["status"]: r["n"] for r in db.execute(
+        "SELECT status, COUNT(*) AS n FROM walk_ins WHERE visit_date = ? GROUP BY status", (day.isoformat(),))}
+    summary["waiting"] = queue.get("waiting", 0)
+    summary["left"] = queue.get("left", 0) + queue.get("closed", 0)
     return render_template(
         "dashboard.html", day=day, summary=summary, doctors=doctors, appts=appts,
         prev_day=day - timedelta(days=1), next_day=day + timedelta(days=1),
@@ -78,22 +79,40 @@ def set_status(appt_id):
     if appt is None:
         abort(404)
     status = request.form.get("status")
-    back = redirect(url_for("admin.dashboard", date=appt["appt_date"]))
     if status not in STATUS_DONE:
         abort(400, "Unknown status.")
-    if status in PAST_ONLY and not has_started(appt):
-        flash("You can only mark a visit completed or a no-show once its start time has passed.", "error")
-        return back
-    if status in FUTURE_ONLY and has_started(appt):
-        flash("That appointment has already started. Mark it completed or a no-show instead.", "error")
-        return back
-    cur = db.execute("UPDATE appointments SET status = ? WHERE id = ? AND status = 'booked'", (status, appt_id))
-    db.commit()
-    if cur.rowcount:
-        flash(f"Appointment at {appt['start_time']} {STATUS_DONE[status]}.", "success")
+    error = change_status(appt, status, "admin", request.form.get("reason"))
+    if error:
+        flash(error, "error")
     else:
-        flash("That appointment was already updated.", "error")
-    return back
+        flash(f"Appointment at {appt['start_time']} {STATUS_DONE[status]}.", "success")
+    return redirect(url_for("admin.dashboard", date=appt["appt_date"]))
+
+
+def _appt_or_404(appt_id):
+    appt = get_db().execute("SELECT * FROM appointments WHERE id = ?", (appt_id,)).fetchone()
+    if appt is None:
+        abort(404)
+    return appt
+
+
+@bp.route("/appointments/<int:appt_id>/arrive", methods=("POST",))
+@login_required(role="admin")
+def arrive(appt_id):
+    appt = _appt_or_404(appt_id)
+    error = mark_arrived(appt)
+    flash(error or f"Checked in the {appt['start_time']} appointment.", "error" if error else "success")
+    return redirect(url_for("admin.dashboard", date=appt["appt_date"]))
+
+
+@bp.route("/appointments/<int:appt_id>/release", methods=("POST",))
+@login_required(role="admin")
+def release(appt_id):
+    appt = _appt_or_404(appt_id)
+    error = release_slot(appt)
+    flash(error or f"The {appt['start_time']} slot was released and the patient marked a no-show.",
+          "error" if error else "success")
+    return redirect(url_for("admin.dashboard", date=appt["appt_date"]))
 
 
 # ---------- Book on a patient's behalf (same checks as the patient page) ----------

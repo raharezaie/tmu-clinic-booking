@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Reports{% endblock %}
-{% macro counts_table(rows, first_heading) %}
+{% macro counts_table(rows, first_heading, doctors=false) %}
 <div class="tablewrap">
 <table>
   <thead><tr>
     <th>{{ first_heading }}</th><th class="num">Slots</th><th class="num">Filled</th><th class="num">Upcoming</th>
     <th class="num">Completed</th><th class="num">No-shows</th><th class="num">Cancelled</th>
+    <th class="num">Walk-ins</th>{% if not doctors %}<th class="num">Left unseen</th>{% endif %}
   </tr></thead>
   <tbody>
   {% for r in rows %}
@@ -17,6 +18,7 @@
       <td class="num">{{ r.completed }}</td>
       <td class="num">{{ r.no_show }}</td>
       <td class="num">{{ r.cancelled }}</td>
+      <td class="num">{{ r.walk_in }}</td>{% if not doctors %}<td class="num">{{ r.left }}</td>{% endif %}
     </tr>
   {% endfor %}
   </tbody>
@@ -42,6 +44,8 @@
   <div><dt>Completed</dt><dd>{{ totals.completed }}</dd></div>
   <div><dt>No-shows</dt><dd>{{ totals.no_show }}<small> {{ totals.no_show_pct }}% of past visits</small></dd></div>
   <div><dt>Cancellations</dt><dd>{{ totals.cancelled }}</dd></div>
+  <div><dt>Booked vs walk-in</dt><dd>{{ totals.used - totals.walk_in }}<small> booked · {{ totals.walk_in }} walk-in</small></dd></div>
+  <div><dt>Walk-ins left unseen</dt><dd>{{ totals.left }}</dd></div>
 </dl>
 <p class="aside">“Upcoming” counts bookings not yet marked completed or a no-show.</p>
 
@@ -49,5 +53,5 @@
 {% if specialty_rows %}{{ counts_table(specialty_rows, 'Specialty') }}{% else %}<p class="empty">No doctors yet.</p>{% endif %}
 
 <h2 class="section">By doctor</h2>
-{% if doctor_rows %}{{ counts_table(doctor_rows, 'Doctor') }}{% else %}<p class="empty">No doctors were scheduled in this period.</p>{% endif %}
+{% if doctor_rows %}{{ counts_table(doctor_rows, 'Doctor', doctors=true) }}{% else %}<p class="empty">No doctors were scheduled in this period.</p>{% endif %}
 {% endblock %}

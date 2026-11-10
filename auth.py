@@ -75,7 +75,8 @@ def login_required(role=None):
 def home_for(user):
     return {
         "admin": url_for("admin.dashboard"),
-        "doctor": url_for("doctor.home"),
+        "doctor": url_for("doctor_dashboard.home"),
+        "kiosk": url_for("kiosk.home"),
     }.get(user["role"], url_for("booking.my_appointments"))
 
 
@@ -124,7 +125,10 @@ def register():
         if not STUDENT_ID.match(student_id):
             errors.append("Student number must be 9 digits.")
         if not errors:
-            if create_user(name, email, password, "patient", student_id):
+            user_id = create_user(name, email, password, "patient", student_id)
+            if user_id:
+                from walkins import auto_merge  # walkins imports this module
+                auto_merge(user_id, email, student_id)  # earlier walk-ins made as a guest
                 flash("Account created. Log in to book an appointment.", "success")
                 return redirect(url_for("auth.login"))
             errors.append("An account with that email already exists.")

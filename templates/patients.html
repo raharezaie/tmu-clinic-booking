@@ -18,10 +18,10 @@
   <tbody>
   {% for p in rows %}
     <tr>
-      <td><a href="{{ url_for('reports.patient', patient_id=p.id) }}">{{ p.full_name }}</a><br><small>{{ p.email }}</small></td>
+      <td><a href="{{ url_for('reports.patient', patient_id=p.id) }}">{{ p.full_name }}</a>{% if p.role == 'guest' %} <span class="tag guest">Guest</span>{% endif %}<br><small>{{ p.shown_email or '' }}</small></td>
       <td>{{ p.student_id or '' }}</td>
       <td class="num">{{ p.visits }}</td>
-      <td class="actions"><a class="btn small" href="{{ url_for('admin.book', patient_id=p.id) }}">Book</a></td>
+      <td class="actions">{% if p.role == 'patient' %}<a class="btn small" href="{{ url_for('admin.book', patient_id=p.id) }}">Book</a>{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>

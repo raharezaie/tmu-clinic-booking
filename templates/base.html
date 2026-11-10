@@ -17,11 +17,15 @@
           {% if g.user.role == 'patient' %}
             <a href="{{ url_for('booking.book') }}">Book</a>
             <a href="{{ url_for('booking.my_appointments') }}">My appointments</a>
+          {% elif g.user.role == 'kiosk' %}
+            <a href="{{ url_for('kiosk.home') }}">Check in</a>
           {% elif g.user.role == 'doctor' %}
-            <a href="{{ url_for('doctor.home') }}">Home</a>
+            <a href="{{ url_for('doctor_dashboard.home') }}">Today</a>
+            <a href="{{ url_for('doctor_dashboard.schedule') }}">My schedule</a>
             <a href="{{ url_for('auth.change_password') }}">Change password</a>
           {% else %}
             <a href="{{ url_for('admin.dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('walkins.queue_page') }}">Walk-ins</a>
             <a href="{{ url_for('doctors_admin.doctors') }}">Doctors</a>
             <a href="{{ url_for('reports.patients') }}">Patients</a>
             <a href="{{ url_for('reports.report') }}">Reports</a>

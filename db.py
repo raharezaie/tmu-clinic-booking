@@ -31,6 +31,7 @@ SAMPLE_DOCTORS = [
 ]
 
 DEMO_DOCTOR = ("Dr. Priya Raman", "priya.raman@torontomu.ca")
+KIOSK_EMAIL = "kiosk@torontomu.ca"   # the clinic tablet's login
 
 
 def init_db():
@@ -52,6 +53,11 @@ def init_db():
         (DEMO_DOCTOR[0], DEMO_DOCTOR[1], generate_password_hash(current_app.config["DEMO_DOCTOR_PASSWORD"])),
     )
     db.execute("UPDATE doctors SET user_id = ? WHERE full_name = ?", (cur.lastrowid, DEMO_DOCTOR[0]))
+    # Device login for the waiting-room check-in tablet
+    db.execute(
+        "INSERT INTO users (full_name, email, password_hash, role) VALUES ('Clinic check-in tablet', ?, ?, 'kiosk')",
+        (KIOSK_EMAIL, generate_password_hash(current_app.config["KIOSK_PASSWORD"])),
+    )
     db.commit()
 
 
@@ -62,7 +68,7 @@ def init_db_command():
     if os.path.exists(path):
         os.remove(path)
     init_db()
-    click.echo(f"Database created with sample doctors. Demo doctor login: {DEMO_DOCTOR[1]}")
+    click.echo(f"Database created with sample doctors. Demo doctor login: {DEMO_DOCTOR[1]}. Kiosk login: {KIOSK_EMAIL}")
 
 
 def init_app(app):

@@ -42,7 +42,7 @@ small { color: var(--muted); font-weight: 400; }
 /* Forms */
 .stack { display: grid; gap: 14px; }
 label { display: grid; gap: 5px; font-weight: 600; font-size: .92rem; }
-input, select { font: inherit; font-weight: 400; padding: 9px 11px; border: 1px solid #b9c3d0; border-radius: var(--radius); background: #fff; color: var(--ink); }
+input, select, textarea { font: inherit; font-weight: 400; padding: 9px 11px; border: 1px solid #b9c3d0; border-radius: var(--radius); background: #fff; color: var(--ink); }
 /* Draw our own dropdown arrow so it sits inside the padding instead of against the edge */
 select {
   appearance: none; -webkit-appearance: none;
@@ -100,6 +100,11 @@ input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible
 .tag.cancelled { background: #fbeceb; color: var(--bad); }
 .tag.completed { background: #e7f4ec; color: var(--ok); }
 .tag.no_show { background: #fdf3d8; color: #8a5a00; }
+.tag.note { background: #eef0f4; color: var(--muted); }
+.tag.walk_in { background: #efe9fb; color: #5b3a9e; }
+.tag.guest { background: #eef0f4; color: var(--ink); }
+.walkin-panel { justify-content: space-between; align-items: center; margin-top: 14px; }
+.walkin-panel form { margin: 0; }
 
 /* Admin dashboard */
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; margin: 0; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
@@ -113,17 +118,19 @@ input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible
 .bar { height: 12px; background: #e3e8ef; border-radius: 999px; overflow: hidden; }
 .bar span { display: block; height: 100%; background: var(--blue); }
 .load .count { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
-.tablewrap { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+.tablewrap { position: relative; overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
 table { width: 100%; border-collapse: collapse; font-size: .93rem; }
 th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { font-size: .85rem; color: var(--muted); font-weight: 600; background: #f8fafc; }
 tbody tr:last-child td { border-bottom: 0; }
 tr.cancelled td { color: var(--muted); }
+tr.open td { color: var(--muted); background: #fafbfc; }
+.muted { color: var(--muted); }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 td.actions { white-space: nowrap; text-align: right; }
 td.actions form { display: inline-block; margin: 0; }
-td.actions form + form { margin-left: 6px; }
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+td.actions form + form, td.actions a.btn + form { margin-left: 6px; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* Admin forms and lists */
 .crumb { margin: 0 0 14px; font-size: .92rem; }
@@ -132,6 +139,25 @@ td.actions form + form { margin-left: 6px; }
 .formrow { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 18px; margin-top: 10px; }
 .formrow label { flex: 1 1 180px; }
 .formrow input[type=hidden] { display: none; }
+
+/* Cancel needs a reason: a small disclosure that opens a form in the row */
+.cancelbox { display: inline-block; text-align: left; }
+.cancelbox summary { list-style: none; }
+.cancelbox summary::-webkit-details-marker { display: none; }
+.cancelbox[open] summary { margin-bottom: 8px; }
+td.actions .cancelbox form, .actions .cancelbox form { display: grid; gap: 8px; width: 240px; white-space: normal; }
+.pagehead .actions { display: flex; gap: 6px; align-items: flex-start; }
+.pagehead .actions form + form { margin-left: 0; }
+
+/* Visit pages */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px 20px; margin: 0; padding: 16px 18px; }
+.facts dt { font-size: .85rem; color: var(--muted); }
+.facts dd { margin: 2px 0 0; }
+.notes { padding: 16px 18px; }
+.notes textarea { width: 100%; resize: vertical; line-height: 1.5; }
+.notes p { white-space: pre-wrap; margin: 4px 0 14px; }
+.notes h3 { font-size: .92rem; margin: 0; }
+.notes .confirm small { align-self: center; }
 .rows { list-style: none; padding: 0; margin: 0; }
 .rows li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 18px; border-bottom: 1px solid var(--line); }
 .rows li:last-child { border-bottom: 0; }
