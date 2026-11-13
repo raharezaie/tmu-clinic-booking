@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Doctors{% endblock %}
+{% block content %}
+<h1>Doctors</h1>
+<p class="lede">Doctors register with the doctor invite code. If their email matches a profile below, the account takes it over.</p>
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Doctor</th><th>Account</th><th>Weekly hours</th><th>Upcoming</th><th><span class="sr-only">Actions</span></th></tr></thead>
+  <tbody>
+  {% for x in doctors %}
+    <tr>
+      <td>{{ x.doctor.full_name }}<br><small>{{ x.doctor.specialty }}, {{ x.doctor.department }}</small></td>
+      <td>{% if x.doctor.user_id %}<span class="tag completed">Linked</span><br><small>{{ x.account_email }}</small>{% else %}<span class="tag">No login yet</span><br><small>{{ x.doctor.email or '' }}</small>{% endif %}</td>
+      <td>{% for d, s, e in x.hours %}{{ d[:3] }} {{ s }}–{{ e }}{% if not loop.last %}<br>{% endif %}{% else %}<small>None</small>{% endfor %}</td>
+      <td>{{ x.doctor.upcoming }}</td>
+      <td class="rowactions"><a class="btn ghost small" href="{{ url_for('admin.doctor_hours', doctor_id=x.doctor.id) }}">Edit hours</a>
+        <a class="btn ghost small" href="{{ url_for('doctors.detail', doctor_id=x.doctor.id) }}">Availability</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

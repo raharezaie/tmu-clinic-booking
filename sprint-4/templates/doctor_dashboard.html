@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}My day{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>{{ doctor.full_name }}</h1>
+    <p class="lede">{{ doctor.specialty }}, {{ doctor.department }}</p>
+  </div>
+  <form method="get" class="filters">
+    <label>Date<input type="date" name="date" value="{{ day.isoformat() }}"></label>
+    <button class="btn ghost">Show day</button>
+  </form>
+</div>
+<div class="daynav">
+  <a href="{{ url_for('doctor.dashboard', date=prev_day.isoformat()) }}">‹ Previous day</a>
+  <strong>{{ day.strftime('%A, %B %d, %Y') }}{% if is_today %} (today){% endif %}</strong>
+  <a href="{{ url_for('doctor.dashboard', date=next_day.isoformat()) }}">Next day ›</a>
+</div>
+
+<dl class="stats">
+  <div><dt>Appointments</dt><dd>{{ summary.booked }}<small> of {{ summary.slots }} slots</small></dd></div>
+  <div><dt>Checked in</dt><dd>{{ summary.checked_in }}</dd></div>
+  <div><dt>Completed</dt><dd>{{ summary.completed }}</dd></div>
+  <div><dt>No-shows</dt><dd>{{ summary.no_show }}</dd></div>
+</dl>
+
+{% if walk %}
+<section class="walkpanel">
+  <div>
+    <h2>Walk-ins</h2>
+    <p>{{ walk.waiting }} waiting for you or the first available doctor.</p>
+  </div>
+  <form method="post" action="{{ url_for('doctor.call_next') }}">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <button class="btn" {% if not walk.waiting %}disabled{% endif %}>Call next walk-in</button>
+  </form>
+  {% for w in walk.with_me %}
+    <div class="withme">
+      <span><strong>With you: {{ w.patient_name }}</strong>{% if w.urgency == 'urgent' %} <span class="tag urgent">Urgent</span>{% endif %}<br><small>{{ w.reason }}{% if w.student_id %}, student {{ w.student_id }}{% endif %}</small></span>
+      <form method="post" action="{{ url_for('doctor.walkin_done', entry_id=w.id) }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button class="btn ghost small">Done</button>
+      </form>
+    </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<h2 class="section">Appointments</h2>
+{% if appts %}
+<ul class="visits">
+  {% for a in appts %}
+    <li class="{{ a.status }}">
+      <div class="when"><strong>{{ a.start_time }}</strong><span class="tag {{ a.status }}">{{ a.status|replace('_', '-')|capitalize }}</span>
+        {% if a.reminder_sent_at %}<span class="sentmark done">&#10003; Reminded</span>{% endif %}</div>
+      <div class="what">
+        <strong>{{ a.patient_name }}</strong>
+        <span>{{ a.student_id or '' }} {{ a.patient_email }}</span>
+        <span>{{ a.reason or 'No reason given' }}{% if a.source == 'waitlist' %} (from wait list){% endif %}</span>
+        {% if a.visit_notes %}<span class="notes">Notes: {{ a.visit_notes }}</span>{% endif %}
+      </div>
+      <div class="visitactions">
+        {% if a.status in ('booked', 'checked_in') and day <= day.today() %}
+          <form method="post" action="{{ url_for('doctor.appointment_action', appt_id=a.id, action='complete') }}" class="completeform">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+            <label class="sr-only" for="notes-{{ a.id }}">Visit notes</label>
+            <textarea id="notes-{{ a.id }}" name="notes" rows="2" maxlength="2000" placeholder="Visit notes (optional, staff only)"></textarea>
+            <button class="btn small">Mark complete</button>
+          </form>
+        {% endif %}
+        <div class="row">
+        {% if a.status == 'booked' and started(a) %}
+          <form method="post" action="{{ url_for('doctor.appointment_action', appt_id=a.id, action='no-show') }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="btn ghost small">No-show</button></form>
+        {% endif %}
+        {% if a.status in ('booked', 'checked_in') and not started(a) %}
+          <form method="post" action="{{ url_for('doctor.appointment_action', appt_id=a.id, action='cancel') }}" onsubmit="return confirm('Cancel this appointment? The patient will be notified.')"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="btn danger small">Cancel</button></form>
+        {% endif %}
+        </div>
+      </div>
+    </li>
+  {% endfor %}
+</ul>
+{% else %}
+  <p class="empty">{% if summary.slots %}No appointments booked for this day yet.{% else %}You're not scheduled to work this day. <a href="{{ url_for('doctor.hours') }}">Edit your hours</a>.{% endif %}</p>
+{% endif %}
+
+{% if waitlist %}
+<h2 class="section">Wait list for this day</h2>
+<p class="hint">If a booking is cancelled, the slot goes to the first person here automatically.</p>
+<ol class="waitnames">{% for w in waitlist %}<li>{{ w.patient_name }}</li>{% endfor %}</ol>
+{% endif %}
+{% endblock %}

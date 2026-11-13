@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Doctors{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Doctors and availability</h1>
+    <p class="lede">See when each doctor works and their next open time.</p>
+  </div>
+  <form method="get" class="filters">
+    <label>Specialty
+      <select name="specialty">
+        <option value="">All specialties</option>
+        {% for s in specialties %}<option {% if s == specialty %}selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="btn ghost">Filter</button>
+  </form>
+</div>
+
+{% if not doctors %}<p class="empty">No doctors match that specialty.</p>{% endif %}
+
+<ul class="doclist">
+{% for d in doctors %}
+  <li class="doctor">
+    <div class="doctor-info">
+      <h2><a href="{{ url_for('doctors.detail', doctor_id=d.doctor.id) }}">{{ d.doctor.full_name }}</a></h2>
+      <p>{{ d.doctor.specialty }}, {{ d.doctor.department }}</p>
+    </div>
+    <dl class="hours">
+      {% for day, start, end in d.hours %}<div><dt>{{ day[:3] }}</dt><dd>{{ start }}–{{ end }}</dd></div>{% endfor %}
+      {% if not d.hours %}<div><dd>No regular hours set</dd></div>{% endif %}
+    </dl>
+    <div class="nextslot">
+      {% if d.next %}
+        <span>Next open: <strong>{{ d.next[0].strftime('%a, %b %d') }} at {{ d.next[1] }}</strong></span>
+      {% else %}
+        <span>No open times in the next 30 days</span>
+      {% endif %}
+      <a class="btn small" href="{{ url_for('doctors.detail', doctor_id=d.doctor.id) }}">See all times</a>
+    </div>
+  </li>
+{% endfor %}
+</ul>
+{% endblock %}

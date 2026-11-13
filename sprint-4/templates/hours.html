@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Weekly hours{% endblock %}
+{% block content %}
+{% if g.user.role == 'admin' %}<p class="crumb"><a href="{{ url_for('admin.doctors') }}">‹ All doctors</a></p>{% endif %}
+<h1>{% if g.user.role == 'doctor' %}My weekly hours{% else %}Weekly hours: {{ doctor.full_name }}{% endif %}</h1>
+<p class="lede">Patients can book 30-minute appointments inside these shifts, up to 30 days ahead.</p>
+
+<div class="twocol">
+  <section>
+    <h2 class="section">Current shifts</h2>
+    {% if shifts %}
+    <ul class="appts">
+      {% for s in shifts %}
+        <li>
+          <div class="what"><strong>{{ weekdays[s.weekday] }}</strong><span>{{ s.start_time }}–{{ s.end_time }}</span></div>
+          <form method="post" onsubmit="return confirm('Remove this shift?')">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="remove">
+            <input type="hidden" name="shift_id" value="{{ s.id }}">
+            <button class="btn danger small">Remove</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+      <p class="empty">No shifts yet, so patients can't book this doctor. Add one.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2 class="section">Add a shift</h2>
+    <form method="post" class="stack card">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="add">
+      <label>Day
+        <select name="weekday" required>{% for d in weekdays %}<option value="{{ loop.index0 }}">{{ d }}</option>{% endfor %}</select>
+      </label>
+      <div class="pair">
+        <label>Start<select name="start_time">{% for t in times %}<option {% if t == '09:00' %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></label>
+        <label>End<select name="end_time">{% for t in times %}<option {% if t == '12:00' %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></label>
+      </div>
+      <button class="btn">Add shift</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

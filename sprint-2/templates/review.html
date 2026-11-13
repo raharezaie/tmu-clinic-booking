@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Confirm booking{% endblock %}
+{% block content %}
+<section class="auth">
+  <h1>Confirm your booking</h1>
+  <dl class="summary">
+    <div><dt>Doctor</dt><dd>{{ doctor.full_name }}<br><small>{{ doctor.specialty }}, {{ doctor.department }}</small></dd></div>
+    <div><dt>Date</dt><dd>{{ day.strftime('%A, %B %d, %Y') }}</dd></div>
+    <div><dt>Time</dt><dd>{{ time }} (30 minutes)</dd></div>
+  </dl>
+  <form method="post" action="{{ url_for('booking.confirm') }}" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <input type="hidden" name="doctor_id" value="{{ doctor.id }}">
+    <input type="hidden" name="date" value="{{ day.isoformat() }}">
+    <input type="hidden" name="time" value="{{ time }}">
+    <label>Reason for visit <small>(optional)</small><input name="reason" maxlength="300" placeholder="e.g. follow-up, prescription renewal"></label>
+    <button class="btn">Book appointment</button>
+  </form>
+  <p class="aside"><a href="{{ url_for('doctors.detail', doctor_id=doctor.id, start=day.isoformat()) }}">Choose a different time</a><br>
+  You can cancel or move it up to 2 hours before it starts.</p>
+</section>
+{% endblock %}

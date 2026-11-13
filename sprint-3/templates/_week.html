@@ -1,0 +1,21 @@
+{# Shared 7-day slot grid. Needs: days, prev_start, next_start, slot_url(day, time) or slot_form #}
+<div class="daynav">
+  {% if prev_start %}<a href="{{ week_url(prev_start) }}">‹ Previous week</a>{% else %}<span></span>{% endif %}
+  <strong>{% if days %}{{ days[0].date.strftime('%b %d') }} – {{ days[-1].date.strftime('%b %d') }}{% endif %}</strong>
+  {% if next_start %}<a href="{{ week_url(next_start) }}">Next week ›</a>{% else %}<span></span>{% endif %}
+</div>
+<div class="week">
+  {% for d in days %}
+    <section class="day {% if not d.working %}off{% endif %}">
+      <h3>{{ d.date.strftime('%a') }} <span>{{ d.date.strftime('%b %d') }}</span></h3>
+      {% if not d.working %}
+        <p class="dayempty">Not working</p>
+      {% elif not d.slots %}
+        <p class="dayempty">Fully booked</p>
+        {% if full_day is defined %}{{ full_day(d.date) }}{% endif %}
+      {% else %}
+        <div class="dayslots">{% for t in d.slots %}{{ slot(d.date, t) }}{% endfor %}</div>
+      {% endif %}
+    </section>
+  {% endfor %}
+</div>

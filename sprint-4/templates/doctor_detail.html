@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{{ doctor.full_name }}{% endblock %}
+{% block content %}
+<p class="crumb"><a href="{{ url_for('doctors.index') }}">‹ All doctors</a></p>
+<div class="pagehead">
+  <div>
+    <h1>{{ doctor.full_name }}</h1>
+    <p class="lede">{{ doctor.specialty }}, {{ doctor.department }}</p>
+  </div>
+  <dl class="hours">
+    {% for day, start, end in hours %}<div><dt>{{ day[:3] }}</dt><dd>{{ start }}–{{ end }}</dd></div>{% endfor %}
+  </dl>
+</div>
+{% if g.user.role == 'patient' %}<p class="hint">Pick a time to review and confirm your booking.</p>{% endif %}
+
+{% macro week_url(s) %}{{ url_for('doctors.detail', doctor_id=doctor.id, start=s.isoformat()) }}{% endmacro %}
+{% macro slot(day, t) -%}
+  {% if g.user.role == 'patient' -%}
+    <a class="chip" href="{{ url_for('booking.review', doctor_id=doctor.id, date=day.isoformat(), time=t) }}">{{ t }}</a>
+  {%- else -%}
+    <span class="chip static">{{ t }}</span>
+  {%- endif %}
+{%- endmacro %}
+{% macro full_day(day) -%}
+  {% if g.user.role == 'patient' %}
+    <form method="post" action="{{ url_for('booking.join_waitlist') }}" class="chipform">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="doctor_id" value="{{ doctor.id }}">
+      <input type="hidden" name="date" value="{{ day.isoformat() }}">
+      <button class="chip wait">Join wait list</button>
+    </form>
+  {% endif %}
+{%- endmacro %}
+{% include "_week.html" %}
+{% endblock %}

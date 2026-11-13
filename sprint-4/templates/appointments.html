@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}My appointments{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>My appointments</h1>
+  <a class="btn" href="{{ url_for('booking.book') }}">Book an appointment</a>
+</div>
+
+{% if unread %}
+  <a class="newmsgs" href="{{ url_for('booking.messages') }}">You have {{ unread }} new message{{ 's' if unread != 1 }}. Open Messages ›</a>
+{% endif %}
+
+<h2 class="section">Upcoming <small>({{ upcoming|length }} of {{ limit }} allowed)</small></h2>
+{% if upcoming %}
+  <ul class="appts">
+  {% for a in upcoming %}
+    <li>
+      <div class="when"><strong>{{ a.start_time }}</strong><span>{{ a.appt_date }}</span></div>
+      <div class="what"><strong>{{ a.doctor_name }}</strong><span>{{ a.specialty }}{% if a.reason %}. {{ a.reason }}{% endif %}{% if a.source == 'waitlist' %} (from wait list){% endif %}</span>
+        {% if a.reminder_sent_at %}<span class="sentmark done">&#10003; Reminder emailed {{ a.reminder_sent_at[5:16] }}</span>{% endif %}</div>
+      <a class="btn ghost small" href="{{ url_for('booking.detail', appt_id=a.id) }}">{% if can_change(a) %}View or change{% else %}View{% endif %}</a>
+    </li>
+  {% endfor %}
+  </ul>
+{% else %}
+  <p class="empty">No upcoming appointments. <a href="{{ url_for('booking.book') }}">Find an open time</a> or <a href="{{ url_for('doctors.index') }}">browse doctors</a>.</p>
+{% endif %}
+
+{% if waits %}
+<h2 class="section">Wait lists you're on</h2>
+<ul class="appts">
+  {% for x in waits %}
+    <li>
+      <div class="when"><strong>#{{ x.position }}</strong><span>in line</span></div>
+      <div class="what"><strong>{{ x.w.doctor_name }}, {{ x.w.wait_date }}</strong><span>You'll be booked automatically if a time opens up that day.</span></div>
+      <form method="post" action="{{ url_for('booking.leave_waitlist', entry_id=x.w.id) }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button class="btn ghost small">Leave</button>
+      </form>
+    </li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{% if history %}
+<h2 class="section">Past and cancelled</h2>
+<ul class="appts muted">
+  {% for a in history %}
+    <li>
+      <div class="when"><strong>{{ a.start_time }}</strong><span>{{ a.appt_date }}</span></div>
+      <div class="what"><strong>{{ a.doctor_name }}</strong><span>{{ a.specialty }}</span></div>
+      <span class="tag {{ a.status }}">{% if a.status == 'booked' %}Past{% else %}{{ a.status|replace('_', '-')|capitalize }}{% endif %}</span>
+    </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

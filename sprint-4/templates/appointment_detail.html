@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Appointment{% endblock %}
+{% block content %}
+<p class="crumb"><a href="{{ url_for('booking.my_appointments') }}">‹ My appointments</a></p>
+<section class="auth wide">
+  <div class="pagehead tight">
+    <h1>{{ a.appt_date }} at {{ a.start_time }}</h1>
+    <span class="tag {{ a.status }}">{{ a.status|replace('_', '-')|capitalize }}</span>
+  </div>
+  <dl class="summary">
+    <div><dt>Doctor</dt><dd>{{ a.doctor_name }}<br><small>{{ a.specialty }}, {{ a.department }}</small></dd></div>
+    <div><dt>Reason</dt><dd>{{ a.reason or 'Not given' }}</dd></div>
+    <div><dt>Booked on</dt><dd>{{ a.created_at[:10] }}{% if a.source == 'waitlist' %} (from the wait list){% endif %}</dd></div>
+    {% if a.status == 'booked' %}<div><dt>Reminder</dt><dd>{% if a.reminder_sent_at %}<span class="sentmark done">&#10003; Emailed to {{ a.patient_email }} on {{ a.reminder_sent_at }}</span>{% else %}We'll email {{ a.patient_email }} the day before.{% endif %}</dd></div>{% endif %}
+    {% if a.status == 'cancelled' %}<div><dt>Cancelled by</dt><dd>{{ 'You' if a.cancelled_by == 'patient' else 'The clinic' }}</dd></div>{% endif %}
+  </dl>
+  {% if can_change %}
+    <div class="actions">
+      <a class="btn" href="{{ url_for('booking.reschedule', appt_id=a.id) }}">Reschedule</a>
+      <form method="post" action="{{ url_for('booking.cancel', appt_id=a.id) }}" onsubmit="return confirm('Cancel this appointment?')">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button class="btn danger">Cancel appointment</button>
+      </form>
+    </div>
+  {% elif a.status == 'booked' %}
+    <p class="hint">It's less than 2 hours until this appointment, so it can't be changed online. Call the clinic if you need help.</p>
+  {% endif %}
+</section>
+{% endblock %}

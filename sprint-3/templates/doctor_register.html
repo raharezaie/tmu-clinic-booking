@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Doctor registration{% endblock %}
+{% block content %}
+<section class="auth">
+  <h1>Register a doctor account</h1>
+  <p class="lede">For clinic doctors. Ask the clinic manager for the doctor invite code. If the clinic already has a profile under your email, your account takes it over, with your hours and bookings.</p>
+  <form method="post" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <label>Full name<input name="full_name" value="{{ request.form.full_name }}" placeholder="Dr. First Last" required></label>
+    <label>TMU email<input type="email" name="email" value="{{ request.form.email }}" placeholder="you@torontomu.ca" required></label>
+    <label>Specialty <small>(not needed if you already have a clinic profile)</small>
+      <input name="specialty" list="specialties" value="{{ request.form.specialty }}" placeholder="e.g. General Practice">
+      <datalist id="specialties">{% for s in specialties %}<option value="{{ s }}">{% endfor %}</datalist>
+    </label>
+    <label>Department <small>(not needed if you already have a clinic profile)</small><input name="department" value="{{ request.form.department }}" placeholder="e.g. Primary Care"></label>
+    <label>Doctor invite code<input name="invite_code" autocomplete="off" required></label>
+    <label>Password<input type="password" name="password" minlength="8" required><small>At least 8 characters</small></label>
+    <label>Confirm password<input type="password" name="confirm" minlength="8" required></label>
+    <button class="btn">Create doctor account</button>
+  </form>
+  <p class="aside">Already registered? <a href="{{ url_for('auth.login') }}">Log in</a></p>
+</section>
+{% endblock %}

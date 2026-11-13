@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Messages{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div>
+    <h1>Messages</h1>
+    <p class="lede">Appointment reminders and updates from the clinic. Each one is also emailed to {{ g.user.email }}.</p>
+  </div>
+</div>
+
+{% if messages %}
+<ul class="msgs">
+  {% for m in messages %}
+    <li class="{{ m.kind }}{% if m.read_at is none %} new{% endif %}">
+      <span class="msgicon" aria-hidden="true">{{ {'reminder': '&#9200;', 'waitlist': '&#10003;', 'cancelled': '&#10005;', 'update': '&#8505;'}[m.kind]|safe }}</span>
+      <div class="msgbody">
+        <div class="msghead">
+          <strong>{{ m.subject }}</strong>
+          {% if m.read_at is none %}<span class="tag newtag">New</span>{% endif %}
+          <span class="msgkind">{{ {'reminder': 'Reminder', 'waitlist': 'Wait list', 'cancelled': 'Cancellation', 'update': 'Update'}[m.kind] }}</span>
+        </div>
+        <p>{{ m.message }}</p>
+        <div class="msgfoot">
+          <span>{{ m.created_at[:16] }}</span>
+          {% if m.email_status in ('sent', 'printed') %}<span class="sentmark done">&#10003; Emailed {{ m.emailed_at[11:16] }}</span>
+          {% elif m.email_status == 'failed' %}<span class="sentmark fail">Email didn't go through. We'll try again.</span>{% endif %}
+          {% if m.appointment_id and m.appt_status %}<a href="{{ url_for('booking.detail', appt_id=m.appointment_id) }}">View appointment ›</a>{% endif %}
+        </div>
+      </div>
+    </li>
+  {% endfor %}
+</ul>
+{% else %}
+  <p class="empty">No messages yet. Reminders for your appointments will appear here the day before, and you'll get them by email too.</p>
+{% endif %}
+{% endblock %}

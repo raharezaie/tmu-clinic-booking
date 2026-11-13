@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}My appointments{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>My appointments</h1>
+  <a class="btn" href="{{ url_for('booking.book') }}">Book an appointment</a>
+</div>
+
+<h2 class="section">Upcoming <small>({{ upcoming|length }} of {{ limit }} allowed)</small></h2>
+{% if upcoming %}
+  <ul class="appts">
+  {% for a in upcoming %}
+    <li>
+      <div class="when"><strong>{{ a.start_time }}</strong><span>{{ a.appt_date }}</span></div>
+      <div class="what"><strong>{{ a.doctor_name }}</strong><span>{{ a.specialty }}{% if a.reason %}. {{ a.reason }}{% endif %}</span></div>
+      <a class="btn ghost small" href="{{ url_for('booking.detail', appt_id=a.id) }}">{% if can_change(a) %}View or change{% else %}View{% endif %}</a>
+    </li>
+  {% endfor %}
+  </ul>
+{% else %}
+  <p class="empty">No upcoming appointments. <a href="{{ url_for('booking.book') }}">Find an open time</a> or <a href="{{ url_for('doctors.index') }}">browse doctors</a>.</p>
+{% endif %}
+
+{% if history %}
+<h2 class="section">Past and cancelled</h2>
+<ul class="appts muted">
+  {% for a in history %}
+    <li>
+      <div class="when"><strong>{{ a.start_time }}</strong><span>{{ a.appt_date }}</span></div>
+      <div class="what"><strong>{{ a.doctor_name }}</strong><span>{{ a.specialty }}</span></div>
+      <span class="tag {{ a.status }}">{% if a.status == 'booked' %}Past{% else %}{{ a.status|capitalize }}{% endif %}</span>
+    </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}
