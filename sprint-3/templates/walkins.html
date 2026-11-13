@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Walk-ins{% endblock %}
+{% block content %}
+<h1>Walk-in queue</h1>
+<p class="lede">{{ q.waiting|length }} waiting, {{ q.with_doctor|length }} with a doctor. Urgent walk-ins go to the front.</p>
+
+<div class="twocol wide-left">
+  <section>
+    <h2 class="section">Waiting</h2>
+    {% if q.waiting %}
+    <ul class="queue">
+      {% for w in q.waiting %}
+        <li class="{{ w.urgency }}">
+          <div class="pos">#{{ w.position }}</div>
+          <div class="what">
+            <strong>{{ w.patient_name }}{% if w.urgency == 'urgent' %} <span class="tag urgent">Urgent</span>{% endif %}</strong>
+            <span>{{ w.reason }}</span>
+            <small>Arrived {{ w.arrived_at[11:16] }}, waiting {{ w.wait_minutes }} min. {{ 'Asked for ' ~ w.preferred_name if w.preferred_name else 'First available doctor' }}.{% if w.student_id %} Student {{ w.student_id }}{% if w.patient_id %} (has an account){% endif %}.{% endif %}</small>
+          </div>
+          <div class="qactions">
+            <form method="post" action="{{ url_for('walkins.assign', entry_id=w.id) }}" class="assign">
+              <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+              <label class="sr-only" for="doc-{{ w.id }}">Doctor</label>
+              <select id="doc-{{ w.id }}" name="doctor_id">
+                {% for d in doctors if not w.preferred_doctor_id or d.id == w.preferred_doctor_id %}<option value="{{ d.id }}">{{ d.full_name }}</option>{% endfor %}
+              </select>
+              <button class="btn small">Send in</button>
+            </form>
+            <form method="post" action="{{ url_for('walkins.set_status', entry_id=w.id) }}">
+              <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+              <button class="btn ghost small" name="status" value="left">Left</button>
+            </form>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+      <p class="empty">Nobody is waiting.</p>
+    {% endif %}
+
+    <h2 class="section">With a doctor</h2>
+    {% if q.with_doctor %}
+    <ul class="queue">
+      {% for w in q.with_doctor %}
+        <li>
+          <div class="pos"><span class="tag checked_in">In</span></div>
+          <div class="what"><strong>{{ w.patient_name }}</strong><span>With {{ w.assigned_name }} since {{ w.called_at[11:16] }}</span></div>
+          <form method="post" action="{{ url_for('walkins.set_status', entry_id=w.id) }}">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+            <button class="btn ghost small" name="status" value="done">Done</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+      <p class="empty">Nobody is with a doctor right now.</p>
+    {% endif %}
+
+    {% if q.finished %}
+      <h2 class="section">Finished today ({{ q.finished|length }})</h2>
+      <ul class="queue compact muted">
+        {% for w in q.finished %}<li>{{ w.patient_name }} <small>{{ 'seen by ' ~ w.assigned_name if w.status == 'done' else 'left before being seen' }}</small></li>{% endfor %}
+      </ul>
+    {% endif %}
+  </section>
+
+  <section>
+    <h2 class="section">Add a walk-in</h2>
+    {% if not doctors %}<p class="hint">No doctors are scheduled today, but you can still record walk-ins.</p>{% endif %}
+    <form method="post" class="stack card">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <label>Patient name<input name="patient_name" maxlength="80" required></label>
+      <label>Student number <small>(optional)</small><input name="student_id" inputmode="numeric" pattern="\d{9}" maxlength="9" placeholder="9 digits"></label>
+      <label>Reason for visit<input name="reason" maxlength="300" required placeholder="e.g. sore throat, prescription question"></label>
+      <fieldset class="radios">
+        <legend>Urgency</legend>
+        <label><input type="radio" name="urgency" value="normal" checked> Normal</label>
+        <label><input type="radio" name="urgency" value="urgent"> Urgent (goes to the front)</label>
+      </fieldset>
+      <label>Doctor
+        <select name="preferred_doctor_id">
+          <option value="">First available</option>
+          {% for d in doctors %}<option value="{{ d.id }}">{{ d.full_name }} ({{ d.specialty }})</option>{% endfor %}
+        </select>
+      </label>
+      <button class="btn">Add to queue</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

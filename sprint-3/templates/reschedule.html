@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Reschedule{% endblock %}
+{% block content %}
+<p class="crumb"><a href="{{ url_for('booking.detail', appt_id=a.id) }}">‹ Back to appointment</a></p>
+<h1>Reschedule with {{ a.doctor_name }}</h1>
+<p class="lede">Currently {{ a.appt_date }} at {{ a.start_time }}. Pick a new time.</p>
+
+{% macro week_url(s) %}{{ url_for('booking.reschedule', appt_id=a.id, start=s.isoformat()) }}{% endmacro %}
+{% macro slot(day, t) -%}
+  <form method="post" class="chipform">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <input type="hidden" name="date" value="{{ day.isoformat() }}">
+    <button class="chip" name="time" value="{{ t }}">{{ t }}</button>
+  </form>
+{%- endmacro %}
+{% include "_week.html" %}
+{% endblock %}

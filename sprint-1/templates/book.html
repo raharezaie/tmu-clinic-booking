@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Book{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>Book an appointment</h1>
+  <form method="get" class="filters">
+    <label>Date<input type="date" name="date" value="{{ day.isoformat() }}" min="{{ first.isoformat() }}" max="{{ last.isoformat() }}"></label>
+    <label>Specialty
+      <select name="specialty">
+        <option value="">All specialties</option>
+        {% for s in specialties %}<option {% if s == specialty %}selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="btn ghost">Show times</button>
+  </form>
+</div>
+
+<div class="daynav">
+  {% if day > first %}<a href="{{ url_for('booking.book', date=prev_day.isoformat(), specialty=specialty) }}">‹ Previous day</a>{% else %}<span></span>{% endif %}
+  <strong>{{ day.strftime('%A, %B %d') }}</strong>
+  {% if day < last %}<a href="{{ url_for('booking.book', date=next_day.isoformat(), specialty=specialty) }}">Next day ›</a>{% else %}<span></span>{% endif %}
+</div>
+
+{% if not results %}
+  <p class="empty">No doctors are scheduled on this day{% if specialty %} for {{ specialty }}{% endif %}. Try the next day or a different specialty.</p>
+{% endif %}
+
+{% for r in results %}
+  <form method="post" class="doctor">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <input type="hidden" name="doctor_id" value="{{ r.doctor.id }}">
+    <input type="hidden" name="date" value="{{ day.isoformat() }}">
+    <div class="doctor-info">
+      <h2>{{ r.doctor.full_name }}</h2>
+      <p>{{ r.doctor.specialty }}, {{ r.doctor.department }}</p>
+    </div>
+    {% if r.slots %}
+      <fieldset class="slots">
+        <legend>Open times</legend>
+        {% for t in r.slots %}
+          <label class="slot"><input type="radio" name="time" value="{{ t }}" required><span>{{ t }}</span></label>
+        {% endfor %}
+      </fieldset>
+      <div class="confirm">
+        <label><span>Reason for visit <small>(optional)</small></span><input name="reason" maxlength="300" placeholder="e.g. follow-up, prescription renewal"></label>
+        <button class="btn">Book appointment</button>
+      </div>
+    {% else %}
+      <p class="full">Fully booked on this day.</p>
+    {% endif %}
+  </form>
+{% endfor %}
+{% endblock %}

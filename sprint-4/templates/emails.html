@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Emails{% endblock %}
+{% block content %}
+<h1>Emails sent</h1>
+<p class="lede">
+  {% if mail_server %}Emails go out through the configured mail server.
+  {% else %}No mail server is set up, so emails are printed in the terminal instead of sent. They're all listed here either way. See the README to connect a real email account.{% endif %}
+</p>
+{% if emails %}
+<div class="tablewrap">
+<table class="emails">
+  <thead><tr><th>When</th><th>To</th><th>What</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for e in emails %}
+    <tr>
+      <td>{{ e.created_at[5:16] }}</td>
+      <td>{{ e.to_address }}</td>
+      <td>
+        <details><summary>{{ e.subject }}</summary><pre>{{ e.body }}</pre></details>
+        <small>{{ {'reminder': 'Day-before reminder', 'walkin_near': 'Walk-in: turn coming up', 'walkin_called': 'Walk-in: called in', 'notification': 'Appointment update'}[e.kind] }}</small>
+      </td>
+      <td><span class="tag {{ e.status }}">{{ {'sent': 'Sent', 'printed': 'Printed (no mail server)', 'failed': 'Failed'}[e.status] }}</span>
+        {% if e.error %}<br><small>{{ e.error }}</small>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+  <p class="empty">No emails yet. They appear here when reminders or walk-in notices go out.</p>
+{% endif %}
+{% endblock %}

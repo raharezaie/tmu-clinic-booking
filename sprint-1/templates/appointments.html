@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}My appointments{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <h1>My appointments</h1>
+  <a class="btn" href="{{ url_for('booking.book') }}">Book an appointment</a>
+</div>
+
+<h2 class="section">Upcoming</h2>
+{% if upcoming %}
+  <ul class="appts">
+  {% for a in upcoming %}
+    <li>
+      <div class="when"><strong>{{ a.start_time }}</strong><span>{{ a.appt_date }}</span></div>
+      <div class="what"><strong>{{ a.doctor_name }}</strong><span>{{ a.specialty }}{% if a.reason %}. {{ a.reason }}{% endif %}</span></div>
+      <form method="post" action="{{ url_for('booking.cancel', appt_id=a.id) }}" onsubmit="return confirm('Cancel this appointment?')">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button class="btn danger small">Cancel</button>
+      </form>
+    </li>
+  {% endfor %}
+  </ul>
+{% else %}
+  <p class="empty">No upcoming appointments. <a href="{{ url_for('booking.book') }}">Find an open time</a>.</p>
+{% endif %}
+
+{% if history %}
+<h2 class="section">Past and cancelled</h2>
+<ul class="appts muted">
+  {% for a in history %}
+    <li>
+      <div class="when"><strong>{{ a.start_time }}</strong><span>{{ a.appt_date }}</span></div>
+      <div class="what"><strong>{{ a.doctor_name }}</strong><span>{{ a.specialty }}</span></div>
+      <span class="tag {{ a.status }}">{{ a.status|capitalize }}</span>
+    </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}
